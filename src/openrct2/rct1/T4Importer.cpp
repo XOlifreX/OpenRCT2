@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -18,6 +18,7 @@
 #include "../rct12/SawyerChunkReader.h"
 #include "../rct12/SawyerEncoding.h"
 #include "../ride/Ride.h"
+#include "../ride/RideData.h"
 #include "../ride/TrackDesign.h"
 #include "../ride/TrackDesignRepository.h"
 
@@ -27,7 +28,7 @@
 class TD4Importer final : public ITrackImporter
 {
 private:
-    MemoryStream _stream;
+    OpenRCT2::MemoryStream _stream;
     std::string _name;
 
 public:
@@ -41,7 +42,7 @@ public:
         if (String::Equals(extension, ".td4", true))
         {
             _name = GetNameFromTrackPath(path);
-            auto fs = FileStream(path, FILE_MODE_OPEN);
+            auto fs = OpenRCT2::FileStream(path, OpenRCT2::FILE_MODE_OPEN);
             return LoadFromStream(&fs);
         }
         else
@@ -50,7 +51,7 @@ public:
         }
     }
 
-    bool LoadFromStream(IStream* stream) override
+    bool LoadFromStream(OpenRCT2::IStream* stream) override
     {
         auto checksumType = SawyerEncoding::ValidateTrackChecksum(stream);
         if (!gConfigGeneral.allow_loading_with_incorrect_checksum && checksumType == RCT12TrackDesignVersion::unknown)
@@ -136,7 +137,7 @@ private:
 
     std::unique_ptr<TrackDesign> ImportTD4Base(std::unique_ptr<TrackDesign> td, rct_track_td4& td4Base)
     {
-        td->type = RCT1::GetRideType(td4Base.type);
+        td->type = RCT1::GetRideType(td4Base.type, td4Base.vehicle_type);
 
         // All TD4s that use powered launch use the type that doesn't pass the station.
         td->ride_mode = td4Base.mode;
@@ -151,13 +152,13 @@ private:
         {
             const char* vehObjName = RCT1::GetRideTypeObject(td4Base.type);
             assert(vehObjName != nullptr);
-            std::memcpy(vehicleObject.name, vehObjName, std::min(String::SizeOf(vehObjName), (size_t)8));
+            std::memcpy(vehicleObject.name, vehObjName, std::min(String::SizeOf(vehObjName), static_cast<size_t>(8)));
         }
         else
         {
             const char* vehObjName = RCT1::GetVehicleObject(td4Base.vehicle_type);
             assert(vehObjName != nullptr);
-            std::memcpy(vehicleObject.name, vehObjName, std::min(String::SizeOf(vehObjName), (size_t)8));
+            std::memcpy(vehicleObject.name, vehObjName, std::min(String::SizeOf(vehObjName), static_cast<size_t>(8)));
         }
         std::memcpy(&td->vehicle_object, &vehicleObject, sizeof(rct_object_entry));
         td->vehicle_type = td4Base.vehicle_type;
@@ -211,7 +212,7 @@ private:
             }
         }
         // Set remaining vehicles to same colour as first vehicle
-        for (int32_t i = RCT1_MAX_TRAINS_PER_RIDE; i < MAX_VEHICLES_PER_RIDE; i++)
+        for (int32_t i = RCT1_MAX_TRAINS_PER_RIDE; i <= MAX_VEHICLES_PER_RIDE; i++)
         {
             td->vehicle_colours[i] = td->vehicle_colours[0];
             td->vehicle_additional_colour[i] = td->vehicle_additional_colour[0];
@@ -222,7 +223,7 @@ private:
         td->number_of_cars_per_train = td4Base.number_of_cars_per_train;
         td->min_waiting_time = td4Base.min_waiting_time;
         td->max_waiting_time = td4Base.max_waiting_time;
-        td->operation_setting = std::min(td4Base.operation_setting, RideProperties[td->type].max_value);
+        td->operation_setting = std::min(td4Base.operation_setting, RideTypeDescriptors[td->type].OperatingSettings.MaxValue);
         td->max_speed = td4Base.max_speed;
         td->average_speed = td4Base.average_speed;
         td->ride_length = td4Base.ride_length;
@@ -249,28 +250,36 @@ private:
         td->space_required_y = 255;
         td->lift_hill_speed = 5;
         td->num_circuits = 0;
-        td->operation_setting = std::min(td->operation_setting, RideProperties[td->type].max_value);
+        td->operation_setting = std::min(td->operation_setting, RideTypeDescriptors[td->type].OperatingSettings.MaxValue);
 
         if (td->type == RIDE_TYPE_MAZE)
         {
-            rct_td46_maze_element mazeElement{};
-            mazeElement.all = !0;
-            while (mazeElement.all != 0)
+            rct_td46_maze_element t4MazeElement{};
+            t4MazeElement.all = !0;
+            while (t4MazeElement.all != 0)
             {
-                _stream.Read(&mazeElement, sizeof(rct_td46_maze_element));
-                if (mazeElement.all != 0)
+                _stream.Read(&t4MazeElement, sizeof(rct_td46_maze_element));
+                if (t4MazeElement.all != 0)
                 {
+                    TrackDesignMazeElement mazeElement{};
+                    mazeElement.x = t4MazeElement.x;
+                    mazeElement.y = t4MazeElement.y;
+                    mazeElement.direction = t4MazeElement.direction;
+                    mazeElement.type = t4MazeElement.type;
                     td->maze_elements.push_back(mazeElement);
                 }
             }
         }
         else
         {
-            rct_td46_track_element trackElement{};
+            rct_td46_track_element t4TrackElement{};
             for (uint8_t endFlag = _stream.ReadValue<uint8_t>(); endFlag != 0xFF; endFlag = _stream.ReadValue<uint8_t>())
             {
                 _stream.SetPosition(_stream.GetPosition() - 1);
-                _stream.Read(&trackElement, sizeof(rct_td46_track_element));
+                _stream.Read(&t4TrackElement, sizeof(rct_td46_track_element));
+                TrackDesignTrackElement trackElement{};
+                trackElement.type = t4TrackElement.type;
+                trackElement.flags = t4TrackElement.flags;
                 td->track_elements.push_back(trackElement);
             }
         }

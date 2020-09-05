@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -70,23 +70,35 @@ private:
             z = waterHeight;
         }
         res->Position.z = z;
-        res->ExpenditureType = RCT_EXPENDITURE_TYPE_LANDSCAPING;
+        res->Expenditure = ExpenditureType::Landscaping;
 
         uint8_t minHeight = GetLowestHeight(validRange);
         bool hasChanged = false;
-        for (int32_t y = validRange.GetTop(); y <= validRange.GetBottom(); y += 32)
+        bool withinOwnership = false;
+        for (int32_t y = validRange.GetTop(); y <= validRange.GetBottom(); y += COORDS_XY_STEP)
         {
-            for (int32_t x = validRange.GetLeft(); x <= validRange.GetRight(); x += 32)
+            for (int32_t x = validRange.GetLeft(); x <= validRange.GetRight(); x += COORDS_XY_STEP)
             {
-                auto* surfaceElement = map_get_surface_element_at(x / 32, y / 32);
+                if (!LocationValid({ x, y }))
+                    continue;
+
+                auto* surfaceElement = map_get_surface_element_at(CoordsXY{ x, y });
                 if (surfaceElement == nullptr)
                     continue;
 
-                uint8_t height = surfaceElement->GetWaterHeight();
+                if (!(gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) && !gCheatsSandboxMode)
+                {
+                    if (!map_is_location_in_park(CoordsXY{ x, y }))
+                    {
+                        continue;
+                    }
+                }
+                withinOwnership = true;
+
+                uint8_t height = surfaceElement->GetWaterHeight() / COORDS_Z_STEP;
                 if (height == 0)
                     continue;
 
-                height *= 2;
                 if (height < minHeight)
                     continue;
 
@@ -108,6 +120,14 @@ private:
             }
         }
 
+        if (!withinOwnership)
+        {
+            GameActionResult::Ptr ownerShipResult = std::make_unique<GameActionResult>(
+                GA_ERROR::DISALLOWED, STR_LAND_NOT_OWNED_BY_PARK);
+            ownerShipResult->ErrorTitle = STR_CANT_LOWER_WATER_LEVEL_HERE;
+            return ownerShipResult;
+        }
+
         if (isExecuting && hasChanged)
         {
             audio_play_sound_at_location(SoundId::LayingOutWater, res->Position);
@@ -123,19 +143,26 @@ private:
     {
         // The lowest height to lower the water to is the highest water level in the selection
         uint8_t minHeight{ 0 };
-        for (int32_t y = validRange.GetTop(); y <= validRange.GetBottom(); y += 32)
+        for (int32_t y = validRange.GetTop(); y <= validRange.GetBottom(); y += COORDS_XY_STEP)
         {
-            for (int32_t x = validRange.GetLeft(); x <= validRange.GetRight(); x += 32)
+            for (int32_t x = validRange.GetLeft(); x <= validRange.GetRight(); x += COORDS_XY_STEP)
             {
-                auto* surfaceElement = map_get_surface_element_at({ x, y });
+                if (!(gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) && !gCheatsSandboxMode)
+                {
+                    if (!map_is_location_in_park(CoordsXY{ x, y }))
+                    {
+                        continue;
+                    }
+                }
+
+                auto* surfaceElement = map_get_surface_element_at(CoordsXY{ x, y });
                 if (surfaceElement == nullptr)
                     continue;
 
-                uint8_t height = surfaceElement->GetWaterHeight();
+                uint8_t height = surfaceElement->GetWaterHeight() / COORDS_Z_STEP;
                 if (height == 0)
                     continue;
 
-                height *= 2;
                 if (height > minHeight)
                 {
                     minHeight = height;

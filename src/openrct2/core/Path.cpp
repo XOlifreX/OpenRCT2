@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -16,6 +16,7 @@
 #include "../platform/platform.h"
 #include "../util/Util.h"
 #include "File.h"
+#include "FileSystem.hpp"
 #include "Memory.hpp"
 #include "Path.hpp"
 #include "String.hpp"
@@ -143,7 +144,7 @@ namespace Path
 
     const std::string GetExtension(const std::string& path)
     {
-        return GetExtension(path.c_str());
+        return fs::u8path(path).extension().string();
     }
 
     const utf8* GetExtension(const utf8* path)

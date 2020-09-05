@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "../core/Guard.hpp"
+#include "../ride/RideData.h"
 #include "../ride/Station.h"
 #include "../ride/Track.h"
 #include "../scenario/Scenario.h"
@@ -15,6 +16,7 @@
 #include "../world/Entrance.h"
 #include "../world/Footpath.h"
 #include "Peep.h"
+#include "Staff.h"
 
 #include <cstring>
 
@@ -108,24 +110,21 @@ static int32_t path_get_permitted_edges(PathElement* pathElement)
 static int32_t peep_move_one_tile(Direction direction, Peep* peep)
 {
     assert(direction_valid(direction));
-    int16_t x = peep->next_x;
-    int16_t y = peep->next_y;
-    x += CoordsDirectionDelta[direction].x;
-    y += CoordsDirectionDelta[direction].y;
+    auto newTile = CoordsXY{ CoordsXY{ peep->NextLoc } + CoordsDirectionDelta[direction] }.ToTileCentre();
 
-    if (x >= 8192 || y >= 8192)
+    if (newTile.x >= MAXIMUM_MAP_SIZE_BIG || newTile.y >= MAXIMUM_MAP_SIZE_BIG)
     {
         // This could loop!
         return guest_surface_path_finding(peep);
     }
 
-    peep->direction = direction;
-    peep->destination_x = x + 16;
-    peep->destination_y = y + 16;
-    peep->destination_tolerance = 2;
-    if (peep->state != PEEP_STATE_QUEUING)
+    peep->PeepDirection = direction;
+    peep->DestinationX = newTile.x;
+    peep->DestinationY = newTile.y;
+    peep->DestinationTolerance = 2;
+    if (peep->State != PEEP_STATE_QUEUING)
     {
-        peep->destination_tolerance = (scenario_rand() & 7) + 2;
+        peep->DestinationTolerance = (scenario_rand() & 7) + 2;
     }
     return 0;
 }
@@ -136,20 +135,18 @@ static int32_t peep_move_one_tile(Direction direction, Peep* peep)
  */
 static int32_t guest_surface_path_finding(Peep* peep)
 {
-    int16_t x = peep->next_x;
-    int16_t y = peep->next_y;
-    int16_t z = peep->next_z;
+    auto pathPos = CoordsXYRangedZ{ peep->NextLoc, peep->NextLoc.z, peep->NextLoc.z + PATH_CLEARANCE };
     Direction randDirection = scenario_rand() & 3;
 
-    if (!fence_in_the_way(x, y, z, z + 4, randDirection))
+    if (!fence_in_the_way(pathPos, randDirection))
     {
-        x += CoordsDirectionDelta[randDirection].x;
-        y += CoordsDirectionDelta[randDirection].y;
+        pathPos.x += CoordsDirectionDelta[randDirection].x;
+        pathPos.y += CoordsDirectionDelta[randDirection].y;
         Direction backwardsDirection = direction_reverse(randDirection);
 
-        if (!fence_in_the_way(x, y, z, z + 4, backwardsDirection))
+        if (!fence_in_the_way(pathPos, backwardsDirection))
         {
-            if (!map_surface_is_blocked(x, y))
+            if (!map_surface_is_blocked(pathPos))
             {
                 return peep_move_one_tile(randDirection, peep);
             }
@@ -164,17 +161,17 @@ static int32_t guest_surface_path_finding(Peep* peep)
     }
     randDirection &= 3;
 
-    x = peep->next_x;
-    y = peep->next_y;
-    if (!fence_in_the_way(x, y, z, z + 4, randDirection))
+    pathPos.x = peep->NextLoc.x;
+    pathPos.y = peep->NextLoc.y;
+    if (!fence_in_the_way(pathPos, randDirection))
     {
-        x += CoordsDirectionDelta[randDirection].x;
-        y += CoordsDirectionDelta[randDirection].y;
+        pathPos.x += CoordsDirectionDelta[randDirection].x;
+        pathPos.y += CoordsDirectionDelta[randDirection].y;
         Direction backwardsDirection = direction_reverse(randDirection);
 
-        if (!fence_in_the_way(x, y, z, z + 4, backwardsDirection))
+        if (!fence_in_the_way(pathPos, backwardsDirection))
         {
-            if (!map_surface_is_blocked(x, y))
+            if (!map_surface_is_blocked(pathPos))
             {
                 return peep_move_one_tile(randDirection, peep);
             }
@@ -184,17 +181,17 @@ static int32_t guest_surface_path_finding(Peep* peep)
     randDirection -= 2;
     randDirection &= 3;
 
-    x = peep->next_x;
-    y = peep->next_y;
-    if (!fence_in_the_way(x, y, z, z + 4, randDirection))
+    pathPos.x = peep->NextLoc.x;
+    pathPos.y = peep->NextLoc.y;
+    if (!fence_in_the_way(pathPos, randDirection))
     {
-        x += CoordsDirectionDelta[randDirection].x;
-        y += CoordsDirectionDelta[randDirection].y;
+        pathPos.x += CoordsDirectionDelta[randDirection].x;
+        pathPos.y += CoordsDirectionDelta[randDirection].y;
         Direction backwardsDirection = direction_reverse(randDirection);
 
-        if (!fence_in_the_way(x, y, z, z + 4, backwardsDirection))
+        if (!fence_in_the_way(pathPos, backwardsDirection))
         {
-            if (!map_surface_is_blocked(x, y))
+            if (!map_surface_is_blocked(pathPos))
             {
                 return peep_move_one_tile(randDirection, peep);
             }
@@ -236,9 +233,11 @@ static uint8_t footpath_element_next_in_direction(TileCoordsXYZ loc, PathElement
     }
 
     loc += TileDirectionDelta[chosenDirection];
-    nextTileElement = map_get_first_element_at(loc.x, loc.y);
+    nextTileElement = map_get_first_element_at(loc.ToCoordsXY());
     do
     {
+        if (nextTileElement == nullptr)
+            break;
         if (nextTileElement->IsGhost())
             continue;
         if (nextTileElement->GetType() != TILE_ELEMENT_TYPE_PATH)
@@ -285,7 +284,7 @@ static uint8_t footpath_element_dest_in_dir(
         return PATH_SEARCH_LIMIT_REACHED;
 
     loc += TileDirectionDelta[chosenDirection];
-    tileElement = map_get_first_element_at(loc.x, loc.y);
+    tileElement = map_get_first_element_at(loc.ToCoordsXY());
     if (tileElement == nullptr)
     {
         return PATH_SEARCH_FAILED;
@@ -416,9 +415,9 @@ static int32_t guest_path_find_aimless(Peep* peep, uint8_t edges)
     if (scenario_rand() & 1)
     {
         // If possible go straight
-        if (edges & (1 << peep->direction))
+        if (edges & (1 << peep->PeepDirection))
         {
-            return peep_move_one_tile(peep->direction, peep);
+            return peep_move_one_tile(peep->PeepDirection, peep);
         }
     }
 
@@ -439,27 +438,27 @@ static int32_t guest_path_find_aimless(Peep* peep, uint8_t edges)
  */
 static uint8_t peep_pathfind_get_max_number_junctions(Peep* peep)
 {
-    if (peep->type == PEEP_TYPE_STAFF)
+    if (peep->AssignedPeepType == PeepType::Staff)
         return 8;
 
     // PEEP_FLAGS_2? It's cleared here but not set anywhere!
-    if ((peep->peep_flags & PEEP_FLAGS_2))
+    if ((peep->PeepFlags & PEEP_FLAGS_2))
     {
         if ((scenario_rand() & 0xFFFF) <= 7281)
-            peep->peep_flags &= ~PEEP_FLAGS_2;
+            peep->PeepFlags &= ~PEEP_FLAGS_2;
 
         return 8;
     }
 
-    if (peep->peep_flags & PEEP_FLAGS_LEAVING_PARK && peep->peep_is_lost_countdown < 90)
+    if (peep->PeepFlags & PEEP_FLAGS_LEAVING_PARK && peep->GuestIsLostCountdown < 90)
     {
         return 8;
     }
 
-    if (peep->item_standard_flags & PEEP_ITEM_MAP)
+    if (peep->ItemStandardFlags & PEEP_ITEM_MAP)
         return 7;
 
-    if (peep->peep_flags & PEEP_FLAGS_LEAVING_PARK)
+    if (peep->PeepFlags & PEEP_FLAGS_LEAVING_PARK)
         return 7;
 
     return 5;
@@ -473,7 +472,7 @@ static uint8_t peep_pathfind_get_max_number_junctions(Peep* peep)
  * since entrances and ride queues coming off a path should not result in
  * the path being considered a junction.
  */
-static bool path_is_thin_junction(PathElement* path, TileCoordsXYZ loc)
+static bool path_is_thin_junction(PathElement* path, const TileCoordsXYZ& loc)
 {
     uint8_t edges = path->GetEdges();
 
@@ -505,7 +504,7 @@ static bool path_is_thin_junction(PathElement* path, TileCoordsXYZ loc)
     return thin_junction;
 }
 
-static int32_t CalculateHeuristicPathingScore(TileCoordsXYZ loc1, TileCoordsXYZ loc2)
+static int32_t CalculateHeuristicPathingScore(const TileCoordsXYZ& loc1, const TileCoordsXYZ& loc2)
 {
     auto xDelta = abs(loc1.x - loc2.x) * 32;
     auto yDelta = abs(loc1.y - loc2.y) * 32;
@@ -518,6 +517,42 @@ static int32_t CalculateHeuristicPathingScore(TileCoordsXYZ loc1, TileCoordsXYZ 
 
     return xDelta + yDelta + zDelta;
 }
+
+#if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
+static constexpr const char* pathSearchToString(uint8_t pathFindSearchResult)
+{
+    switch (pathFindSearchResult)
+    {
+        case PATH_SEARCH_DEAD_END:
+            return "DeadEnd";
+        case PATH_SEARCH_WIDE:
+            return "Wide";
+        case PATH_SEARCH_THIN:
+            return "Thin";
+        case PATH_SEARCH_JUNCTION:
+            return "Junction";
+        case PATH_SEARCH_RIDE_QUEUE:
+            return "RideQueue";
+        case PATH_SEARCH_RIDE_ENTRANCE:
+            return "RideEntrance";
+        case PATH_SEARCH_RIDE_EXIT:
+            return "RideExit";
+        case PATH_SEARCH_PARK_EXIT:
+            return "ParkEntryExit";
+        case PATH_SEARCH_SHOP_ENTRANCE:
+            return "ShopEntrance";
+        case PATH_SEARCH_LIMIT_REACHED:
+            return "LimitReached";
+        case PATH_SEARCH_OTHER:
+            return "Other";
+        case PATH_SEARCH_FAILED:
+            return "Failed";
+            // The default case is omitted intentionally.
+    }
+
+    return "Unknown";
+}
+#endif
 
 /**
  * Searches for the tile with the best heuristic score within the search limits
@@ -603,8 +638,7 @@ static void peep_pathfind_heuristic_search(
     uint8_t searchResult = PATH_SEARCH_FAILED;
 
     bool currentElementIsWide
-        = (currentTileElement->AsPath()->IsWide()
-           && !staff_can_ignore_wide_flag(peep, loc.x * 32, loc.y * 32, loc.z, currentTileElement));
+        = (currentTileElement->AsPath()->IsWide() && !staff_can_ignore_wide_flag(peep, loc.ToCoordsXYZ(), currentTileElement));
 
     loc += TileDirectionDelta[test_edge];
 
@@ -614,22 +648,22 @@ static void peep_pathfind_heuristic_search(
     /* If this is where the search started this is a search loop and the
      * current search path ends here.
      * Return without updating the parameters (best result so far). */
-    if ((_peepPathFindHistory[0].location.x == (uint8_t)loc.x) && (_peepPathFindHistory[0].location.y == (uint8_t)loc.y)
-        && (_peepPathFindHistory[0].location.z == loc.z))
+    if ((_peepPathFindHistory[0].location.x == static_cast<uint8_t>(loc.x))
+        && (_peepPathFindHistory[0].location.y == static_cast<uint8_t>(loc.y)) && (_peepPathFindHistory[0].location.z == loc.z))
     {
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
         if (gPathFindDebug)
         {
-            log_info("[%03d] Return from %d,%d,%d; At start", counter, x >> 5, y >> 5, z);
+            log_info("[%03d] Return from %d,%d,%d; At start", counter, loc.x >> 5, loc.y >> 5, loc.z);
         }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
         return;
     }
 
     bool nextInPatrolArea = inPatrolArea;
-    if (peep->type == PEEP_TYPE_STAFF && peep->staff_type == STAFF_TYPE_MECHANIC)
+    if (peep->AssignedPeepType == PeepType::Staff && peep->AssignedStaffType == StaffType::Mechanic)
     {
-        nextInPatrolArea = staff_is_location_in_patrol(peep, loc.x * 32, loc.y * 32);
+        nextInPatrolArea = peep->AsStaff()->IsLocationInPatrol(loc.ToCoordsXY());
         if (inPatrolArea && !nextInPatrolArea)
         {
 /* The mechanic will leave his patrol area by taking
@@ -638,7 +672,7 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             if (gPathFindDebug)
             {
-                log_info("[%03d] Return from %d,%d,%d; Left patrol area", counter, x >> 5, y >> 5, z);
+                log_info("[%03d] Return from %d,%d,%d; Left patrol area", counter, loc.x >> 5, loc.y >> 5, loc.z);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             return;
@@ -647,7 +681,7 @@ static void peep_pathfind_heuristic_search(
 
     /* Get the next map element of interest in the direction of test_edge. */
     bool found = false;
-    TileElement* tileElement = map_get_first_element_at(loc.x, loc.y);
+    TileElement* tileElement = map_get_first_element_at(loc.ToCoordsXY());
     if (tileElement == nullptr)
     {
         return;
@@ -738,7 +772,7 @@ static void peep_pathfind_heuristic_search(
                 if (tileElement->AsPath()->IsWide())
                 {
                     /* Check if staff can ignore this wide flag. */
-                    if (!staff_can_ignore_wide_flag(peep, loc.x * 32, loc.y * 32, loc.z, tileElement))
+                    if (!staff_can_ignore_wide_flag(peep, loc.ToCoordsXYZ(), tileElement))
                     {
                         searchResult = PATH_SEARCH_WIDE;
                         found = true;
@@ -785,8 +819,8 @@ static void peep_pathfind_heuristic_search(
         if (gPathFindDebug)
         {
             log_info(
-                "[%03d] Checking map element at %d,%d,%d; Type: %s", counter, x >> 5, y >> 5, z,
-                gPathFindSearchText[searchResult]);
+                "[%03d] Checking map element at %d,%d,%d; Type: %s", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                pathSearchToString(searchResult));
         }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
 
@@ -826,7 +860,9 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             if (gPathFindDebug)
             {
-                log_info("[%03d] Search path ends at %d,%d,%d; At goal; Score: %d", counter, x >> 5, y >> 5, z, new_score);
+                log_info(
+                    "[%03d] Search path ends at %d,%d,%d; At goal; Score: %d", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                    new_score);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             continue;
@@ -842,7 +878,7 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             if (gPathFindDebug)
             {
-                log_info("[%03d] Search path ends at %d,%d,%d; Not a path", counter, x >> 5, y >> 5, z);
+                log_info("[%03d] Search path ends at %d,%d,%d; Not a path", counter, loc.x >> 5, loc.y >> 5, loc.z);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             continue;
@@ -884,7 +920,9 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             if (gPathFindDebug)
             {
-                log_info("[%03d] Search path ends at %d,%d,%d; Wide path; Score: %d", counter, x >> 5, y >> 5, z, new_score);
+                log_info(
+                    "[%03d] Search path ends at %d,%d,%d; Wide path; Score: %d", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                    new_score);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             continue;
@@ -900,8 +938,8 @@ static void peep_pathfind_heuristic_search(
         if (gPathFindDebug)
         {
             log_info(
-                "[%03d] Path element at %d,%d,%d; Edges (0123):%d%d%d%d; Reverse: %d", counter, x >> 5, y >> 5, z, edges & 1,
-                (edges & 2) >> 1, (edges & 4) >> 2, (edges & 8) >> 3, test_edge ^ 2);
+                "[%03d] Path element at %d,%d,%d; Edges (0123):%d%d%d%d; Reverse: %d", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                edges & 1, (edges & 2) >> 1, (edges & 4) >> 2, (edges & 8) >> 3, test_edge ^ 2);
         }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
 
@@ -917,7 +955,7 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             if (gPathFindDebug)
             {
-                log_info("[%03d] Search path ends at %d,%d,%d; No more edges/dead end", counter, x >> 5, y >> 5, z);
+                log_info("[%03d] Search path ends at %d,%d,%d; No more edges/dead end", counter, loc.x >> 5, loc.y >> 5, loc.z);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             continue;
@@ -953,8 +991,8 @@ static void peep_pathfind_heuristic_search(
             if (gPathFindDebug)
             {
                 log_info(
-                    "[%03d] Search path ends at %d,%d,%d; Search limit reached; Score: %d", counter, x >> 5, y >> 5, z,
-                    new_score);
+                    "[%03d] Search path ends at %d,%d,%d; Search limit reached; Score: %d", counter, loc.x >> 5, loc.y >> 5,
+                    loc.z, new_score);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             continue;
@@ -976,14 +1014,14 @@ static void peep_pathfind_heuristic_search(
                 /* First check if going through the junction would be
                  * a loop.  If so, the current search path ends here.
                  * Path finding loop detection can take advantage of both the
-                 * peep->pathfind_history - loops through remembered junctions
+                 * peep->PathfindHistory - loops through remembered junctions
                  *     the peep has already passed through getting to its
                  *     current position while on the way to its current goal;
                  * _peepPathFindHistory - loops in the current search path. */
                 bool pathLoop = false;
-                /* Check the peep->pathfind_history to see if this junction has
+                /* Check the peep->PathfindHistory to see if this junction has
                  * already been visited by the peep while heading for this goal. */
-                for (auto& pathfindHistory : peep->pathfind_history)
+                for (auto& pathfindHistory : peep->PathfindHistory)
                 {
                     if (pathfindHistory.x == loc.x && pathfindHistory.y == loc.y && pathfindHistory.z == loc.z)
                     {
@@ -1012,8 +1050,8 @@ static void peep_pathfind_heuristic_search(
                     for (int32_t junctionNum = _peepPathFindNumJunctions + 1; junctionNum <= _peepPathFindMaxJunctions;
                          junctionNum++)
                     {
-                        if ((_peepPathFindHistory[junctionNum].location.x == (uint8_t)loc.x)
-                            && (_peepPathFindHistory[junctionNum].location.y == (uint8_t)loc.y)
+                        if ((_peepPathFindHistory[junctionNum].location.x == static_cast<uint8_t>(loc.x))
+                            && (_peepPathFindHistory[junctionNum].location.y == static_cast<uint8_t>(loc.y))
                             && (_peepPathFindHistory[junctionNum].location.z == loc.z))
                         {
                             pathLoop = true;
@@ -1028,7 +1066,7 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
                     if (gPathFindDebug)
                     {
-                        log_info("[%03d] Search path ends at %d,%d,%d; Loop", counter, x >> 5, y >> 5, z);
+                        log_info("[%03d] Search path ends at %d,%d,%d; Loop", counter, loc.x >> 5, loc.y >> 5, loc.z);
                     }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
                     continue;
@@ -1063,8 +1101,8 @@ static void peep_pathfind_heuristic_search(
                     if (gPathFindDebug)
                     {
                         log_info(
-                            "[%03d] Search path ends at %d,%d,%d; NumJunctions < 0; Score: %d", counter, x >> 5, y >> 5, z,
-                            new_score);
+                            "[%03d] Search path ends at %d,%d,%d; NumJunctions < 0; Score: %d", counter, loc.x >> 5, loc.y >> 5,
+                            loc.z, new_score);
                     }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
                     continue;
@@ -1072,8 +1110,8 @@ static void peep_pathfind_heuristic_search(
 
                 /* This junction was NOT previously visited in the current
                  * search path, so add the junction to the history. */
-                _peepPathFindHistory[_peepPathFindNumJunctions].location.x = (uint8_t)loc.x;
-                _peepPathFindHistory[_peepPathFindNumJunctions].location.y = (uint8_t)loc.y;
+                _peepPathFindHistory[_peepPathFindNumJunctions].location.x = static_cast<uint8_t>(loc.x);
+                _peepPathFindHistory[_peepPathFindNumJunctions].location.y = static_cast<uint8_t>(loc.y);
                 _peepPathFindHistory[_peepPathFindNumJunctions].location.z = loc.z;
                 // .direction take is added below.
 
@@ -1100,14 +1138,18 @@ static void peep_pathfind_heuristic_search(
                 {
                     if (thin_junction)
                         log_info(
-                            "[%03d] Recurse from %d,%d,%d edge: %d; Thin-Junction", counter, x >> 5, y >> 5, z, next_test_edge);
+                            "[%03d] Recurse from %d,%d,%d edge: %d; Thin-Junction", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                            next_test_edge);
                     else
                         log_info(
-                            "[%03d] Recurse from %d,%d,%d edge: %d; Wide-Junction", counter, x >> 5, y >> 5, z, next_test_edge);
+                            "[%03d] Recurse from %d,%d,%d edge: %d; Wide-Junction", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                            next_test_edge);
                 }
                 else
                 {
-                    log_info("[%03d] Recurse from %d,%d,%d edge: %d; Segment", counter, x >> 5, y >> 5, z, next_test_edge);
+                    log_info(
+                        "[%03d] Recurse from %d,%d,%d edge: %d; Segment", counter, loc.x >> 5, loc.y >> 5, loc.z,
+                        next_test_edge);
                 }
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
@@ -1127,7 +1169,8 @@ static void peep_pathfind_heuristic_search(
             if (gPathFindDebug)
             {
                 log_info(
-                    "[%03d] Returned to %d,%d,%d edge: %d; Score: %d", counter, x >> 5, y >> 5, z, next_test_edge, *endScore);
+                    "[%03d] Returned to %d,%d,%d edge: %d; Score: %d", counter, loc.x >> 5, loc.y >> 5, loc.z, next_test_edge,
+                    *endScore);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
         } while ((next_test_edge = bitscanforward(edges)) != -1);
@@ -1141,7 +1184,7 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
         if (gPathFindDebug)
         {
-            log_info("[%03d] Returning from %d,%d,%d; No relevant map element found", counter, x >> 5, y >> 5, z);
+            log_info("[%03d] Returning from %d,%d,%d; No relevant map element found", counter, loc.x >> 5, loc.y >> 5, loc.z);
         }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
     }
@@ -1150,7 +1193,7 @@ static void peep_pathfind_heuristic_search(
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
         if (gPathFindDebug)
         {
-            log_info("[%03d] Returning from %d,%d,%d; All map elements checked", counter, x >> 5, y >> 5, z);
+            log_info("[%03d] Returning from %d,%d,%d; All map elements checked", counter, loc.x >> 5, loc.y >> 5, loc.z);
         }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
     }
@@ -1163,16 +1206,16 @@ static void peep_pathfind_heuristic_search(
  *
  *  rct2: 0x0069A5F0
  */
-Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
+Direction peep_pathfind_choose_direction(const TileCoordsXYZ& loc, Peep* peep)
 {
     // The max number of thin junctions searched - a per-search-path limit.
     _peepPathFindMaxJunctions = peep_pathfind_get_max_number_junctions(peep);
 
     /* The max number of tiles to check - a whole-search limit.
      * Mainly to limit the performance impact of the path finding. */
-    int32_t maxTilesChecked = (peep->type == PEEP_TYPE_STAFF) ? 50000 : 15000;
+    int32_t maxTilesChecked = (peep->AssignedPeepType == PeepType::Staff) ? 50000 : 15000;
     // Used to allow walking through no entry banners
-    _peepPathFindIsStaff = (peep->type == PEEP_TYPE_STAFF);
+    _peepPathFindIsStaff = (peep->AssignedPeepType == PeepType::Staff);
 
     TileCoordsXYZ goal = gPeepPathFindGoalPosition;
 
@@ -1186,7 +1229,7 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
 #endif // defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
 
     // Get the path element at this location
-    TileElement* dest_tile_element = map_get_first_element_at(loc.x, loc.y);
+    TileElement* dest_tile_element = map_get_first_element_at(loc.ToCoordsXY());
     /* Where there are multiple matching map elements placed with zero
      * clearance, save the first one for later use to determine the path
      * slope - this maintains the original behaviour (which only processes
@@ -1209,6 +1252,8 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
     bool isThin = false;
     do
     {
+        if (dest_tile_element == nullptr)
+            break;
         if (dest_tile_element->base_height != loc.z)
             continue;
         if (dest_tile_element->GetType() != TILE_ELEMENT_TYPE_PATH)
@@ -1220,7 +1265,7 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
         }
 
         /* Check if this path element is a thin junction.
-         * Only 'thin' junctions are remembered in peep->pathfind_history.
+         * Only 'thin' junctions are remembered in peep->PathfindHistory.
          * NO attempt is made to merge the overlaid path elements and
          * check if the combination is 'thin'!
          * The junction is considered 'thin' simply if any of the
@@ -1236,10 +1281,10 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
 
     permitted_edges &= 0xF;
     uint8_t edges = permitted_edges;
-    if (isThin && peep->pathfind_goal.x == goal.x && peep->pathfind_goal.y == goal.y && peep->pathfind_goal.z == goal.z)
+    if (isThin && peep->PathfindGoal.x == goal.x && peep->PathfindGoal.y == goal.y && peep->PathfindGoal.z == goal.z)
     {
-        /* Use of peep->pathfind_history[]:
-         * When walking to a goal, the peep pathfind_history stores
+        /* Use of peep->PathfindHistory[]:
+         * When walking to a goal, the peep PathfindHistory stores
          * the last 4 thin junctions that the peep walked through.
          * For each of these 4 thin junctions the peep remembers
          * those edges it has not yet taken.
@@ -1253,11 +1298,11 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
         /* If the peep remembers walking through this junction
          * previously while heading for its goal, retrieve the
          * directions it has not yet tried. */
-        for (auto& pathfindHistory : peep->pathfind_history)
+        for (auto& pathfindHistory : peep->PathfindHistory)
         {
             if (pathfindHistory.x == loc.x && pathfindHistory.y == loc.y && pathfindHistory.z == loc.z)
             {
-                /* Fix broken pathfind_history[i].direction
+                /* Fix broken PathfindHistory[i].direction
                  * which have untried directions that are not
                  * currently possible - could be due to pathing
                  * changes or in earlier code .directions was
@@ -1302,17 +1347,17 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
     }
 
     /* If this is a new goal for the peep. Store it and reset the peep's
-     * pathfind_history. */
-    if (!direction_valid(peep->pathfind_goal.direction) || peep->pathfind_goal.x != goal.x || peep->pathfind_goal.y != goal.y
-        || peep->pathfind_goal.z != goal.z)
+     * PathfindHistory. */
+    if (!direction_valid(peep->PathfindGoal.direction) || peep->PathfindGoal.x != goal.x || peep->PathfindGoal.y != goal.y
+        || peep->PathfindGoal.z != goal.z)
     {
-        peep->pathfind_goal.x = goal.x;
-        peep->pathfind_goal.y = goal.y;
-        peep->pathfind_goal.z = goal.z;
-        peep->pathfind_goal.direction = 0;
+        peep->PathfindGoal.x = goal.x;
+        peep->PathfindGoal.y = goal.y;
+        peep->PathfindGoal.z = goal.z;
+        peep->PathfindGoal.direction = 0;
 
         // Clear pathfinding history
-        std::fill_n((uint8_t*)peep->pathfind_history, sizeof(peep->pathfind_history), 0xFF);
+        std::fill_n(reinterpret_cast<uint8_t*>(peep->PathfindHistory), sizeof(peep->PathfindHistory), 0xFF);
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
         if (gPathFindDebug)
         {
@@ -1368,13 +1413,13 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
             _peepPathFindNumJunctions = _peepPathFindMaxJunctions;
 
             // Initialise _peepPathFindHistory.
-            std::memset(_peepPathFindHistory, 0xFF, sizeof(_peepPathFindHistory));
+            std::memset(static_cast<void*>(_peepPathFindHistory), 0xFF, sizeof(_peepPathFindHistory));
 
             /* The pathfinding will only use elements
              * 1.._peepPathFindMaxJunctions, so the starting point
              * is placed in element 0 */
-            _peepPathFindHistory[0].location.x = (uint8_t)(loc.x);
-            _peepPathFindHistory[0].location.y = (uint8_t)(loc.y);
+            _peepPathFindHistory[0].location.x = static_cast<uint8_t>(loc.x);
+            _peepPathFindHistory[0].location.y = static_cast<uint8_t>(loc.y);
             _peepPathFindHistory[0].location.z = loc.z;
             _peepPathFindHistory[0].direction = 0xF;
 
@@ -1400,18 +1445,18 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
             uint8_t endDirectionList[16] = { 0 };
 
             bool inPatrolArea = false;
-            if (peep->type == PEEP_TYPE_STAFF && peep->staff_type == STAFF_TYPE_MECHANIC)
+            if (peep->AssignedPeepType == PeepType::Staff && peep->AssignedStaffType == StaffType::Mechanic)
             {
                 /* Mechanics are the only staff type that
                  * pathfind to a destination. Determine if the
                  * mechanic is in their patrol area. */
-                inPatrolArea = staff_is_location_in_patrol(peep, peep->next_x, peep->next_y);
+                inPatrolArea = peep->AsStaff()->IsLocationInPatrol(peep->NextLoc);
             }
 
 #if defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
             if (gPathFindDebug)
             {
-                log_verbose("Pathfind searching in direction: %d from %d,%d,%d", test_edge, x >> 5, y >> 5, z);
+                log_verbose("Pathfind searching in direction: %d from %d,%d,%d", test_edge, loc.x >> 5, loc.y >> 5, loc.z);
             }
 #endif // defined(DEBUG_LEVEL_2) && DEBUG_LEVEL_2
 
@@ -1487,21 +1532,21 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
     {
         for (int32_t i = 0; i < 4; ++i)
         {
-            if (peep->pathfind_history[i].x == loc.x && peep->pathfind_history[i].y == loc.y
-                && peep->pathfind_history[i].z == loc.z)
+            if (peep->PathfindHistory[i].x == loc.x && peep->PathfindHistory[i].y == loc.y
+                && peep->PathfindHistory[i].z == loc.z)
             {
                 /* Peep remembers this junction, so remove the
                  * chosen_edge from those left to try. */
-                peep->pathfind_history[i].direction &= ~(1 << chosen_edge);
+                peep->PathfindHistory[i].direction &= ~(1 << chosen_edge);
                 /* Also remove the edge through which the peep
                  * entered the junction from those left to try. */
-                peep->pathfind_history[i].direction &= ~(1 << direction_reverse(peep->direction));
+                peep->PathfindHistory[i].direction &= ~(1 << direction_reverse(peep->PeepDirection));
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
                 if (gPathFindDebug)
                 {
                     log_verbose(
                         "Updating existing pf_history (in index: %d) for %d,%d,%d without entry edge %d & exit edge %d.", i,
-                        loc.x, loc.y, loc.z, direction_reverse(peep->direction), chosen_edge);
+                        loc.x, loc.y, loc.z, direction_reverse(peep->PeepDirection), chosen_edge);
                 }
 #endif // defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
                 return chosen_edge;
@@ -1510,23 +1555,23 @@ Direction peep_pathfind_choose_direction(TileCoordsXYZ loc, Peep* peep)
 
         /* Peep does not remember this junction, so forget a junction
          * and remember this junction. */
-        int32_t i = peep->pathfind_goal.direction++;
-        peep->pathfind_goal.direction &= 3;
-        peep->pathfind_history[i].x = (uint8_t)loc.x;
-        peep->pathfind_history[i].y = (uint8_t)loc.y;
-        peep->pathfind_history[i].z = loc.z;
-        peep->pathfind_history[i].direction = permitted_edges;
+        int32_t i = peep->PathfindGoal.direction++;
+        peep->PathfindGoal.direction &= 3;
+        peep->PathfindHistory[i].x = static_cast<uint8_t>(loc.x);
+        peep->PathfindHistory[i].y = static_cast<uint8_t>(loc.y);
+        peep->PathfindHistory[i].z = loc.z;
+        peep->PathfindHistory[i].direction = permitted_edges;
         /* Remove the chosen_edge from those left to try. */
-        peep->pathfind_history[i].direction &= ~(1 << chosen_edge);
+        peep->PathfindHistory[i].direction &= ~(1 << chosen_edge);
         /* Also remove the edge through which the peep
          * entered the junction from those left to try. */
-        peep->pathfind_history[i].direction &= ~(1 << direction_reverse(peep->direction));
+        peep->PathfindHistory[i].direction &= ~(1 << direction_reverse(peep->PeepDirection));
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
         if (gPathFindDebug)
         {
             log_verbose(
                 "Storing new pf_history (in index: %d) for %d,%d,%d without entry edge %d & exit edge %d.", i, loc.x, loc.y,
-                loc.z, direction_reverse(peep->direction), chosen_edge);
+                loc.z, direction_reverse(peep->PeepDirection), chosen_edge);
         }
 #endif // defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
     }
@@ -1565,21 +1610,17 @@ static uint8_t get_nearest_park_entrance_index(uint16_t x, uint16_t y)
 static int32_t guest_path_find_entering_park(Peep* peep, uint8_t edges)
 {
     // Send peeps to the nearest park entrance.
-    uint8_t chosenEntrance = get_nearest_park_entrance_index(peep->next_x, peep->next_y);
+    uint8_t chosenEntrance = get_nearest_park_entrance_index(peep->NextLoc.x, peep->NextLoc.y);
 
     // If no defined park entrances are found, walk aimlessly.
     if (chosenEntrance == 0xFF)
         return guest_path_find_aimless(peep, edges);
 
-    int16_t x = gParkEntrances[chosenEntrance].x;
-    int16_t y = gParkEntrances[chosenEntrance].y;
-    int16_t z = gParkEntrances[chosenEntrance].z;
-
-    gPeepPathFindGoalPosition = { x / 32, y / 32, z >> 3 };
+    gPeepPathFindGoalPosition = TileCoordsXYZ(gParkEntrances[chosenEntrance]);
     gPeepPathFindIgnoreForeignQueues = true;
     gPeepPathFindQueueRideIndex = RIDE_ID_NULL;
 
-    Direction chosenDirection = peep_pathfind_choose_direction({ peep->next_x / 32, peep->next_y / 32, peep->next_z }, peep);
+    Direction chosenDirection = peep_pathfind_choose_direction(TileCoordsXYZ{ peep->NextLoc }, peep);
 
     if (chosenDirection == INVALID_DIRECTION)
         return guest_path_find_aimless(peep, edges);
@@ -1618,28 +1659,24 @@ static uint8_t get_nearest_peep_spawn_index(uint16_t x, uint16_t y)
 static int32_t guest_path_find_leaving_park(Peep* peep, uint8_t edges)
 {
     // Send peeps to the nearest spawn point.
-    uint8_t chosenSpawn = get_nearest_peep_spawn_index(peep->next_x, peep->next_y);
+    uint8_t chosenSpawn = get_nearest_peep_spawn_index(peep->NextLoc.x, peep->NextLoc.y);
 
     // If no defined spawns were found, walk aimlessly.
     if (chosenSpawn == 0xFF)
         return guest_path_find_aimless(peep, edges);
 
-    PeepSpawn* peepSpawn = &gPeepSpawns[chosenSpawn];
+    const auto peepSpawnLoc = gPeepSpawns[chosenSpawn].ToTileStart();
+    Direction direction = peepSpawnLoc.direction;
 
-    int16_t x = peepSpawn->x & 0xFFE0;
-    int16_t y = peepSpawn->y & 0xFFE0;
-    uint8_t z = peepSpawn->z / 8;
-    Direction direction = peepSpawn->direction;
-
-    gPeepPathFindGoalPosition = { x / 32, y / 32, z };
-    if (x == peep->next_x && y == peep->next_y)
+    gPeepPathFindGoalPosition = TileCoordsXYZ(peepSpawnLoc);
+    if (peepSpawnLoc.x == peep->NextLoc.x && peepSpawnLoc.y == peep->NextLoc.y)
     {
         return peep_move_one_tile(direction, peep);
     }
 
     gPeepPathFindIgnoreForeignQueues = true;
     gPeepPathFindQueueRideIndex = RIDE_ID_NULL;
-    direction = peep_pathfind_choose_direction({ peep->next_x / 32, peep->next_y / 32, peep->next_z }, peep);
+    direction = peep_pathfind_choose_direction(TileCoordsXYZ{ peep->NextLoc }, peep);
     if (direction == INVALID_DIRECTION)
         return guest_path_find_aimless(peep, edges);
     else
@@ -1653,20 +1690,20 @@ static int32_t guest_path_find_leaving_park(Peep* peep, uint8_t edges)
 static int32_t guest_path_find_park_entrance(Peep* peep, uint8_t edges)
 {
     // If entrance no longer exists, choose a new one
-    if ((peep->peep_flags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN) && peep->current_ride >= gParkEntrances.size())
+    if ((peep->PeepFlags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN) && peep->ChosenParkEntrance >= gParkEntrances.size())
     {
-        peep->current_ride = 0xFF;
-        peep->peep_flags &= ~(PEEP_FLAGS_PARK_ENTRANCE_CHOSEN);
+        peep->ChosenParkEntrance = PARK_ENTRANCE_INDEX_NULL;
+        peep->PeepFlags &= ~(PEEP_FLAGS_PARK_ENTRANCE_CHOSEN);
     }
 
-    if (!(peep->peep_flags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN))
+    if (!(peep->PeepFlags & PEEP_FLAGS_PARK_ENTRANCE_CHOSEN))
     {
-        uint8_t chosenEntrance = 0xFF;
+        uint8_t chosenEntrance = PARK_ENTRANCE_INDEX_NULL;
         uint16_t nearestDist = 0xFFFF;
         uint8_t entranceNum = 0;
         for (const auto& entrance : gParkEntrances)
         {
-            uint16_t dist = abs(entrance.x - peep->next_x) + abs(entrance.y - peep->next_y);
+            uint16_t dist = abs(entrance.x - peep->NextLoc.x) + abs(entrance.y - peep->NextLoc.y);
             if (dist < nearestDist)
             {
                 nearestDist = dist;
@@ -1678,16 +1715,13 @@ static int32_t guest_path_find_park_entrance(Peep* peep, uint8_t edges)
         if (chosenEntrance == 0xFF)
             return guest_path_find_aimless(peep, edges);
 
-        peep->current_ride = chosenEntrance;
-        peep->peep_flags |= PEEP_FLAGS_PARK_ENTRANCE_CHOSEN;
+        peep->ChosenParkEntrance = chosenEntrance;
+        peep->PeepFlags |= PEEP_FLAGS_PARK_ENTRANCE_CHOSEN;
     }
 
-    const auto& entrance = gParkEntrances[peep->current_ride];
-    int16_t x = entrance.x;
-    int16_t y = entrance.y;
-    int16_t z = entrance.z;
+    const auto& entrance = gParkEntrances[peep->ChosenParkEntrance];
 
-    gPeepPathFindGoalPosition = { x / 32, y / 32, z >> 3 };
+    gPeepPathFindGoalPosition = TileCoordsXYZ(entrance);
     gPeepPathFindIgnoreForeignQueues = true;
     gPeepPathFindQueueRideIndex = RIDE_ID_NULL;
 
@@ -1695,7 +1729,7 @@ static int32_t guest_path_find_park_entrance(Peep* peep, uint8_t edges)
     pathfind_logging_enable(peep);
 #endif // defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
 
-    Direction chosenDirection = peep_pathfind_choose_direction({ peep->next_x / 32, peep->next_y / 32, peep->next_z }, peep);
+    Direction chosenDirection = peep_pathfind_choose_direction(TileCoordsXYZ{ peep->NextLoc }, peep);
 
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
     pathfind_logging_disable();
@@ -1718,7 +1752,7 @@ static int32_t guest_path_find_park_entrance(Peep* peep, uint8_t edges)
 static void get_ride_queue_end(TileCoordsXYZ& loc)
 {
     TileCoordsXY queueEnd = { 0, 0 };
-    TileElement* tileElement = map_get_first_element_at(loc.x, loc.y);
+    TileElement* tileElement = map_get_first_element_at(loc.ToCoordsXY());
 
     if (tileElement == nullptr)
     {
@@ -1766,8 +1800,10 @@ static void get_ride_queue_end(TileCoordsXYZ& loc)
         }
         nextTile += TileDirectionDelta[direction];
 
-        tileElement = map_get_first_element_at(nextTile.x, nextTile.y);
+        tileElement = map_get_first_element_at(nextTile.ToCoordsXY());
         found = false;
+        if (tileElement == nullptr)
+            break;
         do
         {
             if (tileElement == firstPathElement)
@@ -1833,7 +1869,7 @@ static void get_ride_queue_end(TileCoordsXYZ& loc)
         break;
     }
 
-    if (loc.z == 0xFF)
+    if (loc.z == MAX_ELEMENT_HEIGHT)
         return;
 
     tileElement = lastPathElement;
@@ -1848,14 +1884,50 @@ static void get_ride_queue_end(TileCoordsXYZ& loc)
     loc.z = tileElement->base_height;
 }
 
+/*
+ * If a ride has multiple entrance stations and is set to sync with
+ * adjacent stations, cycle through the entrance stations (based on
+ * number of rides the peep has been on) so the peep will try the
+ * different sections of the ride.
+ * In this case, the ride's various entrance stations will typically,
+ * though not necessarily, be adjacent to one another and consequently
+ * not too far for the peep to walk when cycling between them.
+ * Note: the same choice of station must made while the peep navigates
+ * to the station. Consequently a truly random station selection here is not
+ * appropriate.
+ */
+static StationIndex guest_pathfinding_select_random_station(
+    const Guest* guest, int32_t numEntranceStations, std::bitset<MAX_STATIONS>& entranceStations)
+{
+    int32_t select = guest->GuestNumRides % numEntranceStations;
+    while (select > 0)
+    {
+        for (StationIndex i = 0; i < MAX_STATIONS; i++)
+        {
+            if (entranceStations[i])
+            {
+                entranceStations[i] = false;
+                select--;
+                break;
+            }
+        }
+    }
+    for (StationIndex i = 0; i < MAX_STATIONS; i++)
+    {
+        if (entranceStations[i])
+        {
+            return i;
+        }
+    }
+
+    return 0;
+}
 /**
  *
  *  rct2: 0x00694C35
  */
 int32_t guest_path_finding(Guest* peep)
 {
-    // int16_t x, y, z;
-
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
     pathfind_logging_enable(peep);
     if (gPathFindDebug)
@@ -1869,7 +1941,7 @@ int32_t guest_path_finding(Guest* peep)
         return guest_surface_path_finding(peep);
     }
 
-    TileCoordsXYZ loc = { peep->next_x / 32, peep->next_y / 32, peep->next_z };
+    TileCoordsXYZ loc{ peep->NextLoc };
 
     auto* pathElement = map_get_path_element_at(loc);
     if (pathElement == nullptr)
@@ -1885,7 +1957,7 @@ int32_t guest_path_finding(Guest* peep)
         return guest_surface_path_finding(peep);
     }
 
-    if (peep->outside_of_park == 0 && peep->HeadingForRideOrParkExit())
+    if (!peep->OutsideOfPark && peep->HeadingForRideOrParkExit())
     {
         /* If this tileElement is adjacent to any non-wide paths,
          * remove all of the edges to wide paths. */
@@ -1907,7 +1979,7 @@ int32_t guest_path_finding(Guest* peep)
             edges = adjustedEdges;
     }
 
-    int32_t direction = direction_reverse(peep->direction);
+    int32_t direction = direction_reverse(peep->PeepDirection);
     // Check if in a dead end (i.e. only edge is where the peep came from)
     if (!(edges & ~(1 << direction)))
     {
@@ -1943,7 +2015,7 @@ int32_t guest_path_finding(Guest* peep)
 
     // Peep is outside the park.
     // loc_694F19:
-    if (peep->outside_of_park != 0)
+    if (peep->OutsideOfPark)
     {
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
         if (gPathFindDebug)
@@ -1952,7 +2024,7 @@ int32_t guest_path_finding(Guest* peep)
         }
         pathfind_logging_disable();
 #endif // defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
-        switch (peep->state)
+        switch (peep->State)
         {
             case PEEP_STATE_ENTERING_PARK:
                 return guest_path_find_entering_park(peep, edges);
@@ -1996,7 +2068,7 @@ int32_t guest_path_finding(Guest* peep)
     /* If there are still multiple directions to choose from,
      * peeps with maps will randomly read the map: probability of doing so
      * is much higher when heading for a ride or the park exit. */
-    if (peep->item_standard_flags & PEEP_ITEM_MAP)
+    if (peep->ItemStandardFlags & PEEP_ITEM_MAP)
     {
         // If at least 2 directions consult map
         if (bitcount(edges) >= 2)
@@ -2013,7 +2085,7 @@ int32_t guest_path_finding(Guest* peep)
         }
     }
 
-    if (peep->peep_flags & PEEP_FLAGS_LEAVING_PARK)
+    if (peep->PeepFlags & PEEP_FLAGS_LEAVING_PARK)
     {
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
         if (gPathFindDebug)
@@ -2025,7 +2097,7 @@ int32_t guest_path_finding(Guest* peep)
         return guest_path_find_park_entrance(peep, edges);
     }
 
-    if (peep->guest_heading_to_ride_id == 0xFF)
+    if (peep->GuestHeadingToRideId == RIDE_ID_NULL)
     {
 #if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
         if (gPathFindDebug)
@@ -2038,7 +2110,7 @@ int32_t guest_path_finding(Guest* peep)
     }
 
     // Peep is heading for a ride.
-    ride_id_t rideIndex = peep->guest_heading_to_ride_id;
+    ride_id_t rideIndex = peep->GuestHeadingToRideId;
     auto ride = get_ride(rideIndex);
     if (ride == nullptr || ride->status != RIDE_STATUS_OPEN)
     {
@@ -2060,24 +2132,22 @@ int32_t guest_path_finding(Guest* peep)
      * At the same time, count how many entrance stations there are and
      * which stations are entrance stations. */
     auto bestScore = std::numeric_limits<int32_t>::max();
-    uint8_t closestStationNum = 0;
+    StationIndex closestStationNum = 0;
 
     int32_t numEntranceStations = 0;
-    uint8_t entranceStations = 0;
+    std::bitset<MAX_STATIONS> entranceStations = {};
 
-    for (uint8_t stationNum = 0; stationNum < MAX_STATIONS; ++stationNum)
+    for (StationIndex stationNum = 0; stationNum < MAX_STATIONS; ++stationNum)
     {
         // Skip if stationNum has no entrance (so presumably an exit only station)
         if (ride_get_entrance_location(ride, stationNum).isNull())
             continue;
 
         numEntranceStations++;
-        entranceStations |= (1 << stationNum);
+        entranceStations[stationNum] = true;
 
         TileCoordsXYZD entranceLocation = ride_get_entrance_location(ride, stationNum);
-        auto score = CalculateHeuristicPathingScore(
-            { entranceLocation.x, entranceLocation.y, entranceLocation.z },
-            { peep->next_x / 32, peep->next_y / 32, peep->next_z });
+        auto score = CalculateHeuristicPathingScore(entranceLocation, TileCoordsXYZ{ peep->NextLoc });
         if (score < bestScore)
         {
             bestScore = score;
@@ -2090,32 +2160,15 @@ int32_t guest_path_finding(Guest* peep)
     if (numEntranceStations == 0)
         closestStationNum = 0;
 
-    /* If a ride has multiple entrance stations and is set to sync with
-     * adjacent stations, cycle through the entrance stations (based on
-     * number of rides the peep has been on) so the peep will try the
-     * different sections of the ride.
-     * In this case, the ride's various entrance stations will typically,
-     * though not necessarily, be adjacent to one another and consequently
-     * not too far for the peep to walk when cycling between them.
-     * Note: the same choice of station must made while the peep navigates
-     * to the station. Consequently a random station selection here is not
-     * appropriate. */
     if (numEntranceStations > 1 && (ride->depart_flags & RIDE_DEPART_SYNCHRONISE_WITH_ADJACENT_STATIONS))
     {
-        int32_t select = peep->no_of_rides % numEntranceStations;
-        while (select > 0)
-        {
-            closestStationNum = bitscanforward(entranceStations);
-            entranceStations &= ~(1 << closestStationNum);
-            select--;
-        }
-        closestStationNum = bitscanforward(entranceStations);
+        closestStationNum = guest_pathfinding_select_random_station(peep, numEntranceStations, entranceStations);
     }
 
     if (numEntranceStations == 0)
     {
         // closestStationNum is always 0 here.
-        LocationXY8 entranceXY = ride->stations[closestStationNum].Start;
+        auto entranceXY = TileCoordsXY(ride->stations[closestStationNum].Start);
         loc.x = entranceXY.x;
         loc.y = entranceXY.y;
         loc.z = ride->stations[closestStationNum].Height;
@@ -2133,12 +2186,12 @@ int32_t guest_path_finding(Guest* peep)
     gPeepPathFindGoalPosition = loc;
     gPeepPathFindIgnoreForeignQueues = true;
 
-    direction = peep_pathfind_choose_direction({ peep->next_x / 32, peep->next_y / 32, peep->next_z }, peep);
+    direction = peep_pathfind_choose_direction(TileCoordsXYZ{ peep->NextLoc }, peep);
 
     if (direction == INVALID_DIRECTION)
     {
         /* Heuristic search failed for all directions.
-         * Reset the pathfind_goal - this means that the pathfind_history
+         * Reset the PathfindGoal - this means that the PathfindHistory
          * will be reset in the next call to peep_pathfind_choose_direction().
          * This lets the heuristic search "try again" in case the player has
          * edited the path layout or the mechanic was already stuck in the

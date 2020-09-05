@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -13,6 +13,8 @@
 #    include <windows.h>
 
 // Then the rest
+#    include "../Version.h"
+
 #    include <datetimeapi.h>
 #    include <memory>
 #    include <shlobj.h>
@@ -22,7 +24,9 @@
 #        define __USE_SHGETKNOWNFOLDERPATH__
 #        define __USE_GETDATEFORMATEX__
 #    else
-#        define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#        ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#            define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#        endif
 #    endif
 
 #    include "../OpenRCT2.h"
@@ -32,6 +36,12 @@
 #    include "platform.h"
 
 #    include <iterator>
+
+#    if _WIN32_WINNT < 0x600
+#        define swprintf_s(a, b, c, d, ...) swprintf(a, b, c, ##__VA_ARGS__)
+#    endif
+
+constexpr wchar_t SOFTWARE_CLASSES[] = L"Software\\Classes";
 
 namespace Platform
 {
@@ -134,17 +144,23 @@ namespace Platform
         }
     }
 
+    std::string GetCurrentExecutableDirectory()
+    {
+        auto exePath = GetCurrentExecutablePath();
+        auto exeDirectory = Path::GetDirectory(exePath);
+        return exeDirectory;
+    }
+
     std::string GetInstallPath()
     {
-        auto path = std::string(gCustomOpenrctDataPath);
+        auto path = std::string(gCustomOpenRCT2DataPath);
         if (!path.empty())
         {
             path = Path::GetAbsolute(path);
         }
         else
         {
-            auto exePath = GetCurrentExecutablePath();
-            auto exeDirectory = Path::GetDirectory(exePath);
+            auto exeDirectory = GetCurrentExecutableDirectory();
             path = Path::Combine(exeDirectory, "data");
         }
         return path;
@@ -157,7 +173,7 @@ namespace Platform
 
     std::string GetDocsPath()
     {
-        return std::string();
+        return GetCurrentExecutableDirectory();
     }
 
     static SYSTEMTIME TimeToSystemTime(std::time_t timestamp)
@@ -213,8 +229,15 @@ namespace Platform
         auto hModule = GetModuleHandleA("ntdll.dll");
         if (hModule != nullptr)
         {
-            using RtlGetVersionPtr = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
+            using RtlGetVersionPtr = long(WINAPI*)(PRTL_OSVERSIONINFOW);
+#    if defined(__GNUC__) && __GNUC__ >= 8
+#        pragma GCC diagnostic push
+#        pragma GCC diagnostic ignored "-Wcast-function-type"
+#    endif
             auto fn = (RtlGetVersionPtr)GetProcAddress(hModule, "RtlGetVersion");
+#    if defined(__GNUC__) && __GNUC__ >= 8
+#        pragma GCC diagnostic pop
+#    endif
             if (fn != nullptr)
             {
                 RTL_OSVERSIONINFOW rovi{};
@@ -231,6 +254,17 @@ namespace Platform
             }
         }
         return result;
+    }
+
+    bool IsRunningInWine()
+    {
+        HMODULE ntdllMod = GetModuleHandleW(L"ntdll.dll");
+
+        if (ntdllMod && GetProcAddress(ntdllMod, "wine_get_version"))
+        {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -314,6 +348,175 @@ namespace Platform
             size = GetModuleFileNameW(hModule, wExePath.get(), wExePathCapacity);
         } while (size >= wExePathCapacity);
         return String::ToUtf8(wExePath.get());
+    }
+
+    utf8* StrDecompToPrecomp(utf8* input)
+    {
+        return input;
+    }
+
+    void SetUpFileAssociations()
+    {
+        // Setup file extensions
+        SetUpFileAssociation(".sc4", "RCT1 Scenario (.sc4)", "Play", "\"%1\"", 0);
+        SetUpFileAssociation(".sc6", "RCT2 Scenario (.sc6)", "Play", "\"%1\"", 0);
+        SetUpFileAssociation(".sv4", "RCT1 Saved Game (.sc4)", "Play", "\"%1\"", 0);
+        SetUpFileAssociation(".sv6", "RCT2 Saved Game (.sv6)", "Play", "\"%1\"", 0);
+        SetUpFileAssociation(".sv7", "RCT Modified Saved Game (.sv7)", "Play", "\"%1\"", 0);
+        SetUpFileAssociation(".td4", "RCT1 Track Design (.td4)", "Install", "\"%1\"", 0);
+        SetUpFileAssociation(".td6", "RCT2 Track Design (.td6)", "Install", "\"%1\"", 0);
+
+        // Refresh explorer
+        SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+    }
+
+#    if _WIN32_WINNT >= 0x0600
+    static HMODULE _dllModule = nullptr;
+    static HMODULE GetDLLModule()
+    {
+        if (_dllModule == nullptr)
+        {
+            _dllModule = GetModuleHandle(nullptr);
+        }
+        return _dllModule;
+    }
+
+    static std::wstring get_progIdName(const std::string_view& extension)
+    {
+        auto progIdName = std::string(OPENRCT2_NAME) + std::string(extension);
+        auto progIdNameW = String::ToWideChar(progIdName);
+        return progIdNameW;
+    }
+#    endif
+
+    bool SetUpFileAssociation(
+        const std::string extension, const std::string fileTypeText, const std::string commandText,
+        const std::string commandArgs, const uint32_t iconIndex)
+    {
+#    if _WIN32_WINNT >= 0x0600
+        wchar_t exePathW[MAX_PATH];
+        wchar_t dllPathW[MAX_PATH];
+
+        [[maybe_unused]] int32_t printResult;
+
+        GetModuleFileNameW(nullptr, exePathW, static_cast<DWORD>(std::size(exePathW)));
+        GetModuleFileNameW(GetDLLModule(), dllPathW, static_cast<DWORD>(std::size(dllPathW)));
+
+        auto extensionW = String::ToWideChar(extension);
+        auto fileTypeTextW = String::ToWideChar(fileTypeText);
+        auto commandTextW = String::ToWideChar(commandText);
+        auto commandArgsW = String::ToWideChar(commandArgs);
+        auto progIdNameW = get_progIdName(extension);
+
+        HKEY hKey = nullptr;
+        HKEY hRootKey = nullptr;
+
+        // [HKEY_CURRENT_USER\Software\Classes]
+        if (RegOpenKeyW(HKEY_CURRENT_USER, SOFTWARE_CLASSES, &hRootKey) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hRootKey);
+            return false;
+        }
+
+        // [hRootKey\.ext]
+        if (RegSetValueW(hRootKey, extensionW.c_str(), REG_SZ, progIdNameW.c_str(), 0) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hRootKey);
+            return false;
+        }
+
+        if (RegCreateKeyW(hRootKey, progIdNameW.c_str(), &hKey) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            RegCloseKey(hRootKey);
+            return false;
+        }
+
+        // [hRootKey\OpenRCT2.ext]
+        if (RegSetValueW(hKey, nullptr, REG_SZ, fileTypeTextW.c_str(), 0) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            RegCloseKey(hRootKey);
+            return false;
+        }
+        // [hRootKey\OpenRCT2.ext\DefaultIcon]
+        wchar_t szIconW[MAX_PATH];
+        printResult = swprintf_s(szIconW, MAX_PATH, L"\"%s\",%d", dllPathW, iconIndex);
+        assert(printResult >= 0);
+        if (RegSetValueW(hKey, L"DefaultIcon", REG_SZ, szIconW, 0) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            RegCloseKey(hRootKey);
+            return false;
+        }
+
+        // [hRootKey\OpenRCT2.sv6\shell]
+        if (RegSetValueW(hKey, L"shell", REG_SZ, L"open", 0) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            RegCloseKey(hRootKey);
+            return false;
+        }
+
+        // [hRootKey\OpenRCT2.sv6\shell\open]
+        if (RegSetValueW(hKey, L"shell\\open", REG_SZ, commandTextW.c_str(), 0) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            RegCloseKey(hRootKey);
+            return false;
+        }
+
+        // [hRootKey\OpenRCT2.sv6\shell\open\command]
+        wchar_t szCommandW[MAX_PATH];
+        printResult = swprintf_s(szCommandW, MAX_PATH, L"\"%s\" %s", exePathW, commandArgsW.c_str());
+        assert(printResult >= 0);
+        if (RegSetValueW(hKey, L"shell\\open\\command", REG_SZ, szCommandW, 0) != ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            RegCloseKey(hRootKey);
+            return false;
+        }
+#    endif
+        return true;
+    }
+
+    static void RemoveFileAssociation(const utf8* extension)
+    {
+#    if _WIN32_WINNT >= 0x0600
+        // [HKEY_CURRENT_USER\Software\Classes]
+        HKEY hRootKey;
+        if (RegOpenKeyW(HKEY_CURRENT_USER, SOFTWARE_CLASSES, &hRootKey) == ERROR_SUCCESS)
+        {
+            // [hRootKey\.ext]
+            RegDeleteTreeA(hRootKey, extension);
+
+            // [hRootKey\OpenRCT2.ext]
+            auto progIdName = get_progIdName(extension);
+            RegDeleteTreeW(hRootKey, progIdName.c_str());
+
+            RegCloseKey(hRootKey);
+        }
+#    endif
+    }
+
+    void RemoveFileAssociations()
+    {
+        // Remove file extensions
+        RemoveFileAssociation(".sc4");
+        RemoveFileAssociation(".sc6");
+        RemoveFileAssociation(".sv4");
+        RemoveFileAssociation(".sv6");
+        RemoveFileAssociation(".sv7");
+        RemoveFileAssociation(".td4");
+        RemoveFileAssociation(".td6");
+
+        // Refresh explorer
+        SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+    }
+
+    bool HandleSpecialCommandLineArgument(const char* argument)
+    {
+        return false;
     }
 } // namespace Platform
 

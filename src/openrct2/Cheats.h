@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -33,6 +33,7 @@ extern bool gCheatsEnableChainLiftOnAllTrack;
 extern bool gCheatsAllowArbitraryRideTypeChanges;
 extern bool gCheatsIgnoreResearchStatus;
 extern bool gCheatsEnableAllDrawableTrackPieces;
+extern bool gCheatsAllowTrackPlaceInvalidHeights;
 
 enum class CheatType : int32_t
 {
@@ -83,6 +84,9 @@ enum class CheatType : int32_t
     DisableRideValueAging,
     IgnoreResearchStatus,
     EnableAllDrawableTrackPieces,
+    CreateDucks,
+    RemoveDucks,
+    AllowTrackPlaceInvalidHeights,
     Count,
 };
 
@@ -94,7 +98,7 @@ enum
     GUEST_PARAMETER_THIRST,
     GUEST_PARAMETER_NAUSEA,
     GUEST_PARAMETER_NAUSEA_TOLERANCE,
-    GUEST_PARAMETER_BATHROOM,
+    GUEST_PARAMETER_TOILET,
     GUEST_PARAMETER_PREFERRED_RIDE_INTENSITY
 };
 
@@ -108,6 +112,7 @@ enum
 
 #define CHEATS_GIVE_GUESTS_MONEY MONEY(1000, 00)
 #define CHEATS_TRAM_INCREMENT 250
+#define CHEATS_DUCK_INCREMENT 20
 #define CHEATS_STAFF_FAST_SPEED 0xFF
 #define CHEATS_STAFF_NORMAL_SPEED 0x60
 #define CHEATS_STAFF_FREEZE_SPEED 0

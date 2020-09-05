@@ -116,8 +116,8 @@ STR_0530    :Carros pendurados por um cabo de aço andam continuamente de uma po
 STR_0531    :Uma montanha-russa de aço compacta onde trens viajam por parafusos e loops
 STR_0532    :O Labirinto é construído com cercas vivas ou muros de 1,82 metros de altura. Os visitantes vagam pelo labirinto podendo sair apenas quando encontrarem a saída
 STR_0533    :Prédio de madeira com uma escada interna e um escorregador espiral externo para ser usado com tapetes deslizantes
-STR_0534    :Passageiros pilotam karts com motor a gasolina
-STR_0535    :Barcos em formato de troncos viajam por um canal d'água, esparrinhando água e molhando passageiros em declives íngremes
+STR_0534    :Visitantes disputam uma corrida de kart em uma pista de asfalto
+STR_0535    :Barcos navegam por um canal d'água, esparrinhando água e molhando passageiros em declives íngremes
 STR_0536    :Barcos circulares serpenteiam por um largo canal d'água, esparrinhando por cachoeiras e empolgando os passageiros por corredeiras espumantes
 STR_0537    :Carros de bate-bate controlados pelos passageiros
 STR_0538    :Grande navio pirata de balanço.
@@ -158,7 +158,7 @@ STR_0578    :Carros correm em trilhos envolvidos por anéis, passando por quedas
 STR_0579    :Um jogo suave de golfe em miniatura
 STR_0580    :Uma montanha-russa de aço gigante capaz de quedas suaves e colinas maiores que 90m
 STR_0581    :Um anel de assentos é puxado para o topo de uma alta torre enquanto gira lentamente, então desce em queda livre, parando suavemente na parte inferior usando freios magnéticos
-STR_0582    :Veículos aerobarcos guiados pelos passageiros
+STR_0582    :Visitantes passeiam em aerobarcos que eles mesmos pilotam
 STR_0583    :Prédio contendo salas tortas e corredores inclinados para desorientar as pessoas que andam por eles
 STR_0584    :Bicicletas especiais correm em uma pista de aço de monotrilho, controladas pelo pedalar dos passageiros
 STR_0585    :Passageiros sentam em um par de cadeiras suspensas abaixo do trilho enquanto fazem loops e giros por inversões estreitas
@@ -1129,8 +1129,8 @@ STR_1749    :{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{POP16}{DUR
 STR_1751    :Não é possível mudar o tempo limite na atração...
 STR_1752    :{SMALLFONT}{BLACK}Mostrar listas de visitantes individuais no parque
 STR_1753    :{SMALLFONT}{BLACK}Mostrar lista resumida de visitantes no parque
-STR_1754    :{BLACK}{COMMA16} visitantes
-STR_1755    :{BLACK}{COMMA16} visitante
+STR_1754    :{BLACK}{COMMA32} visitantes
+STR_1755    :{BLACK}{COMMA32} visitante
 STR_1756    :{WINDOW_COLOUR_2}Preço de entrada:
 STR_1757    :{WINDOW_COLOUR_2}Confiança: {MOVE_X}{255}{BLACK}{COMMA16}%
 STR_1758    :{SMALLFONT}{BLACK}Modo de construção
@@ -1188,7 +1188,7 @@ STR_1813    :Objetos variados
 STR_1814    :Ações
 STR_1815    :Pensamentos
 STR_1816    :{SMALLFONT}{BLACK}Selecione o tipo de informação para mostrar na lista de visitantes
-STR_1817    :({COMMA16})
+STR_1817    :({COMMA32})
 STR_1818    :{WINDOW_COLOUR_2}Todos os visitantes
 STR_1819    :{WINDOW_COLOUR_2}Todos os visitantes (resumido)
 STR_1820    :{WINDOW_COLOUR_2}Visitantes {STRINGID}
@@ -1217,9 +1217,9 @@ STR_1842    :Favorito de: {COMMA16} visitante
 STR_1843    :Favorito de: {COMMA16} visitantes
 STR_1844    :{SMALLFONT}{BLACK}Selecione o tipo de informação para ser exibida na lista de atrações
 STR_1845    :{MONTHYEAR}
-STR_1846    :{COMMA16} Visitantes
-STR_1847    :{INLINE_SPRITE}{11}{20}{00}{00}{COMMA16} Visitantes
-STR_1848    :{INLINE_SPRITE}{10}{20}{00}{00}{COMMA16} Visitantes
+STR_1846    :{COMMA32} Visitantes
+STR_1847    :{INLINE_SPRITE}{11}{20}{00}{00}{COMMA32} Visitantes
+STR_1848    :{INLINE_SPRITE}{10}{20}{00}{00}{COMMA32} Visitantes
 STR_1849    :{WINDOW_COLOUR_2}Tocar música
 STR_1850    :{SMALLFONT}{BLACK}Selecione a música que deve ser tocada nesta atração
 STR_1851    :{WINDOW_COLOUR_2}Custos de funcionamento: {BLACK}{CURRENCY2DP} por hora
@@ -1575,7 +1575,7 @@ STR_2219    :{RED}{COMMA16} pessoas morreram em um acidente em {STRINGID}
 STR_2220    :{WINDOW_COLOUR_2}Classificação do Parque: {BLACK}{COMMA16}
 STR_2221    :{SMALLFONT}{BLACK}Classificação do Parque: {COMMA16}
 STR_2222    :{SMALLFONT}{BLACK}{STRINGID}
-STR_2223    :{WINDOW_COLOUR_2}Visitantes no parque: {BLACK}{COMMA16}
+STR_2223    :{WINDOW_COLOUR_2}Visitantes no parque: {BLACK}{COMMA32}
 STR_2224    :{WINDOW_COLOUR_2}Dinheiro: {BLACK}{CURRENCY2DP}
 STR_2225    :{WINDOW_COLOUR_2}Dinheiro: {RED}{CURRENCY2DP}
 STR_2226    :{WINDOW_COLOUR_2}Valor do parque: {BLACK}{CURRENCY}
@@ -1858,39 +1858,14 @@ STR_2521    :Mostrar lista de funcionários
 STR_2522    :Mostrar mensagens recentes
 STR_2523    :Mostrar mapa
 STR_2524    :Captura de tela
-### The following need to be reordered to match SDL_keycode layout.
-STR_2525    :???
-STR_2526    :???
-STR_2527    :???
-STR_2528    :???
-STR_2529    :???
-STR_2530    :???
-STR_2531    :???
-STR_2532    :???
 STR_2533    :Backspace
 STR_2534    :Tab
-STR_2535    :???
-STR_2536    :???
 STR_2537    :Clear
 STR_2538    :Return
-STR_2539    :???
-STR_2540    :???
-STR_2541    :???
-STR_2542    :???
 STR_2543    :Alt/Menu
 STR_2544    :Pause
 STR_2545    :Caps Lock
-STR_2546    :???
-STR_2547    :???
-STR_2548    :???
-STR_2549    :???
-STR_2550    :???
-STR_2551    :???
 STR_2552    :Escape
-STR_2553    :???
-STR_2554    :???
-STR_2555    :???
-STR_2556    :???
 STR_2557    :Barra de Espaço
 STR_2558    :PgUp
 STR_2559    :PgDn
@@ -1907,54 +1882,7 @@ STR_2569    :Snapshot
 STR_2570    :Insert
 STR_2571    :Delete
 STR_2572    :Help
-STR_2573    :0
-STR_2574    :1
-STR_2575    :2
-STR_2576    :3
-STR_2577    :4
-STR_2578    :5
-STR_2579    :6
-STR_2580    :7
-STR_2581    :8
-STR_2582    :9
-STR_2583    :???
-STR_2584    :???
-STR_2585    :???
-STR_2586    :???
-STR_2587    :???
-STR_2588    :???
-STR_2589    :???
-STR_2590    :A
-STR_2591    :B
-STR_2592    :C
-STR_2593    :D
-STR_2594    :E
-STR_2595    :F
-STR_2596    :G
-STR_2597    :H
-STR_2598    :I
-STR_2599    :J
-STR_2600    :K
-STR_2601    :L
-STR_2602    :M
-STR_2603    :N
-STR_2604    :O
-STR_2605    :P
-STR_2606    :Q
-STR_2607    :R
-STR_2608    :S
-STR_2609    :T
-STR_2610    :U
-STR_2611    :V
-STR_2612    :W
-STR_2613    :X
-STR_2614    :Y
-STR_2615    :Z
-STR_2616    :???
-STR_2617    :???
 STR_2618    :Menu
-STR_2619    :???
-STR_2620    :???
 STR_2621    :NumPad 0
 STR_2622    :NumPad 1
 STR_2623    :NumPad 2
@@ -1967,53 +1895,11 @@ STR_2629    :NumPad 8
 STR_2630    :NumPad 9
 STR_2631    :NumPad *
 STR_2632    :NumPad +
-STR_2633    :???
 STR_2634    :NumPad -
 STR_2635    :NumPad .
 STR_2636    :NumPad /
-STR_2637    :F1
-STR_2638    :F2
-STR_2639    :F3
-STR_2640    :F4
-STR_2641    :F5
-STR_2642    :F6
-STR_2643    :F7
-STR_2644    :F8
-STR_2645    :F9
-STR_2646    :F10
-STR_2647    :F11
-STR_2648    :F12
-STR_2649    :F13
-STR_2650    :F14
-STR_2651    :F15
-STR_2652    :F16
-STR_2653    :F17
-STR_2654    :F18
-STR_2655    :F19
-STR_2656    :F20
-STR_2657    :F21
-STR_2658    :F22
-STR_2659    :F23
-STR_2660    :F24
-STR_2661    :???
-STR_2662    :???
-STR_2663    :???
-STR_2664    :???
-STR_2665    :???
-STR_2666    :???
-STR_2667    :???
-STR_2668    :???
 STR_2669    :NumLock
 STR_2670    :Scroll
-STR_2671    :???
-STR_2672    :???
-STR_2673    :???
-STR_2674    :???
-STR_2675    :???
-STR_2676    :???
-STR_2677    :???
-STR_2678    :???
-STR_2679    :???
 STR_2680    :Todas as pesquisas completadas
 STR_2681    :{MEDIUMFONT}{BLACK}Incrementa seu dinheiro em {CURRENCY}
 STR_2684    :{SMALLFONT}{BLACK}Um grande grupo de visitantes está chegando (250 visitantes)
@@ -2029,9 +1915,6 @@ STR_2693    :Terreno:
 STR_2694    :Gerar
 STR_2695    :Terreno aleatório
 STR_2696    :Colocar árvores
-STR_2697    :???
-STR_2698    :???
-STR_2699    :???
 STR_2700    :Salvamento automático:
 STR_2701    :A cada minuto
 STR_2702    :A cada 5 minutos
@@ -2043,13 +1926,6 @@ STR_2707    :Usar explorador de arquivos do sistema
 STR_2708    :{WINDOW_COLOUR_1}Você tem certeza que quer sobrescrever {STRINGID}?
 STR_2709    :Sobrescrever
 STR_2710    :Tipo de nome para o arquivo.
-STR_2711    :;
-STR_2712    :=
-STR_2713    :,
-STR_2714    :-
-STR_2715    :.
-STR_2716    :/
-STR_2717    :'
 STR_2718    :Voltar Pasta
 STR_2719    :Novo Arquivo
 STR_2720    :{UINT16}s
@@ -2064,8 +1940,8 @@ STR_2728    :{UINT16}hora:{UINT16}min
 STR_2729    :{UINT16}hora:{UINT16}mins
 STR_2730    :{UINT16}horas:{UINT16}min
 STR_2731    :{UINT16}horas:{UINT16}mins
-STR_2732    :{COMMA16}pés
-STR_2733    :{COMMA16}m
+STR_2732    :{COMMA32}pés
+STR_2733    :{COMMA32}m
 STR_2734    :{COMMA16}mph
 STR_2735    :{COMMA16}km/h
 STR_2736    :{MONTH}, Ano {COMMA16}
@@ -2076,10 +1952,6 @@ STR_2740    :RollerCoaster Tycoon 1
 STR_2741    :RollerCoaster Tycoon 2
 STR_2742    :css50.dat não encontrado
 STR_2743    :Copie data\css17.dat da instalação do seu RCT1 para data\css50.dat na sua pasta de instalação do RCT2, ou tenha certeza que o caminho para o RCT1 na aba Avançado está correto.
-STR_2744    :[
-STR_2745    :\
-STR_2746    :]
-STR_2747    :”
 STR_2749    :Meu novo cenário
 # New strings used in the cheats window previously these were ???
 STR_2750    :Mover todos os itens para o topo
@@ -2105,7 +1977,7 @@ STR_2778    :»{MOVE_X}{SMALLFONT}{STRING}
 STR_2779    :Janela de Exibição #{COMMA16}
 STR_2780    :Janela de Exibição Grande
 # End of new strings
-STR_2781    :{STRINGID}:{MOVE_X}{195}{STRINGID}
+STR_2781    :{STRINGID}:
 STR_2782    :SHIFT + 
 STR_2783    :CTRL + 
 STR_2784    :Alterar atalhos do teclado
@@ -2549,8 +2421,8 @@ STR_3329    :Entrada do parque ainda não construída
 STR_3330    :O parque deve ter um pouco de terreno
 STR_3331    :Caminho da entrada do parque a borda do mapa incompleta ou muito complexo - O caminho deve ter uma largura simples (um quadrado) com poucos cruzamentos e esquinas
 STR_3332    :Entrada do parque está ao contrário ou não tem caminho até a borda do mapa
-STR_3333    :Exportar plug-in de objetos com jogos salvos
-STR_3334    :{SMALLFONT}{BLACK}Selecione se deve salvar requerimento de qualquer plug-in de objeto adicional (dados adicionais não fornecidos no produto principal) nos dados de jogo salvo ou cenário, permitindo que sejam carregados por alguém que não tenha dados de objeto adicional
+STR_3333    :Exportar objetos personalizados com jogos salvos
+STR_3334    :{SMALLFONT}{BLACK}Selecione se deve salvar qualquer objeto customizado adicional requerido (dados adicionais não fornecidos no produto principal) nos dados de jogo salvo ou cenário, permitindo que sejam carregados por alguém que não tenha dados de objeto adicional
 STR_3335    :Construtor de Pista - Selecione o Tipo de Veículo e Atração
 STR_3336    :Gerenciador de Projetos de Pista - Selecione o Tipo de Atração
 STR_3338    :{BLACK}Projeto com Traçado Personalizado
@@ -2603,11 +2475,6 @@ STR_3390    :Muitos itens selecionados
 STR_3437    :{SMALLFONT}{BLACK}Limpar grandes áreas de cenário na paisagem
 STR_3438    :Impossível remover todos os cenários a partir daqui...
 STR_3439    :Limpar Cenário
-STR_3440    :Página 1
-STR_3441    :Página 2
-STR_3442    :Página 3
-STR_3443    :Página 4
-STR_3444    :Página 5
 STR_3445    :Definir a Área de Patrulha
 STR_3446    :Cancelar a Área de Patrulha
 
@@ -2654,19 +2521,6 @@ STR_5160    :{POP16}{MONTH} {PUSH16}{PUSH16}{STRINGID}, Ano {POP16}{COMMA16}
 STR_5161    :Formato da Data:
 STR_5162    :Dia/Mês/Ano
 STR_5163    :Mês/Dia/Ano
-STR_5164    :Nome do canal do Twitch
-STR_5165    :Usar nome dos seguidores
-STR_5166    :{SMALLFONT}{BLACK}Nomeia os visitantes com o nome{NEWLINE}dos seguidores do canal no Twitch
-STR_5167    :Rastrear visitantes seguidores
-STR_5168    :{SMALLFONT}{BLACK}Habilita informação de rastreamento dos visitantes com nome igual aos dos seguidores do seu canal no Twitch
-STR_5169    :Usar nome das pessoas no chat do Twitch
-STR_5170    :{SMALLFONT}{BLACK}Nomeia os visitantes com o nome das pessoas no chat do Twitch
-STR_5171    :Rastrear visitantes do chat
-STR_5172    :{SMALLFONT}{BLACK}Habilita informação de rastreamento dos visitantes com nome igual aos das pessoas do chat do Twitch
-STR_5173    :Mostrar chat do Twitch como notícias
-STR_5174    :{SMALLFONT}{BLACK}Usa as mensagens do chat do Twitch precedido por !news nas notificações dentro do jogo
-STR_5175    :Insira o nome do seu canal no Twitch
-STR_5176    :Habilitar integração com Twitch
 STR_5177    :Modo de tela:
 STR_5178    :{SMALLFONT}{BLACK}Mostrar trapaças financeiras
 STR_5179    :{SMALLFONT}{BLACK}Mostrar trapaças de visitantes
@@ -2761,7 +2615,6 @@ STR_5267    :{SMALLFONT}{BLACK}Idioma e Unidades
 STR_5268    :{SMALLFONT}{BLACK}Áudio
 STR_5269    :{SMALLFONT}{BLACK}Controles e interface
 STR_5270    :{SMALLFONT}{BLACK}Variados
-STR_5271    :{SMALLFONT}{BLACK}Twitch
 STR_5272    :{SMALLFONT}{BLACK}Cenário Pequeno
 STR_5273    :{SMALLFONT}{BLACK}Cenário Grande
 STR_5274    :{SMALLFONT}{BLACK}Calçada
@@ -2805,26 +2658,6 @@ STR_5311    :{SMALLFONT}{BLACK}Ferramentas de depuração
 STR_5312    :Exibir console
 STR_5313    :Exibir inspetor de azulejo
 STR_5314    :Inspetor de azulejo
-STR_5315    :Grama
-STR_5316    :Areia
-STR_5317    :Sujeira
-STR_5318    :Pedra
-STR_5319    :Marciano
-STR_5320    :Tabuleiro de damas
-STR_5321    :Tufos de grama
-STR_5322    :Gelo
-STR_5323    :Grade (vermelho)
-STR_5324    :Grade (amarelo)
-STR_5325    :Grade (azul)
-STR_5326    :Grade (verde)
-STR_5327    :Areia (escura)
-STR_5328    :Areia (clara)
-STR_5329    :Tabuleiro de damas (Invertido)
-STR_5330    :Visão subterrânea
-STR_5331    :Pedra
-STR_5332    :Madeira (vermelha)
-STR_5333    :Madeira (preta)
-STR_5334    :Gelo
 STR_5335    :Entrada da atração
 STR_5336    :Saída da atração
 STR_5337    :Entrada do parque
@@ -2902,7 +2735,6 @@ STR_5410    :Editar
 STR_5411    :Recarregar
 STR_5412    :Ir para
 STR_5413    :Carregar
-STR_5414    :Carregar{MOVE_X}{87}Six Flags Magic Mountain.SC6
 STR_5415    :Carregar{MOVE_X}{87}{STRING}
 STR_5416    :Carregar{MOVE_X}{87}Jogo salvo não selecionado
 STR_5417    :Localização
@@ -2944,7 +2776,7 @@ STR_5452    :Alternar barra de ferramentas
 STR_5453    :Selecione outra atração
 STR_5454    :Remover limite de FPS
 STR_5455    :Ativar o modo sandbox
-STR_5456    :Desabilitar as verificações de depuração
+STR_5456    :Desabilitar as verificações de folga
 STR_5457    :Desativar limites de apoio
 STR_5458    :Girar no sentido horário
 STR_5459    :Girar no sentido anti-horário
@@ -3036,7 +2868,7 @@ STR_5547    :{SMALLFONT}{BLACK}Rosa claro
 STR_5548    :Exibir todos os modos operacionais
 STR_5549    :Ano/Mês/Dia
 STR_5550    :{POP16}{POP16}Ano {COMMA16}, {PUSH16}{PUSH16}{MONTH} {PUSH16}{PUSH16}{STRINGID}
-STR_5551    :Ano/Mês/Dia
+STR_5551    :Ano/Dia/Mês
 STR_5552    :{POP16}{POP16}Ano {COMMA16}, {PUSH16}{PUSH16}{PUSH16}{STRINGID} {MONTH}
 STR_5553    :Pausar jogo quando a Steam estiver sobrepondo
 STR_5554    :{SMALLFONT}{BLACK}Habilitar ferramenta de montanha
@@ -3300,7 +3132,6 @@ STR_5848    :{SMALLFONT}{BLACK}Cria ou gerencia sequências de títulos personal
 STR_5849    :{SMALLFONT}{BLACK}Posiciona automaticamente{NEWLINE}novos funcionários contratados
 STR_5850    :<not used anymore>
 STR_5851    :{SMALLFONT}{BLACK}Define o intervalo de inspeção padrão{NEWLINE}nas novas atrações construídas
-STR_5852    :{SMALLFONT}{BLACK}Define o nome do canal do TwitchTV que será usado para a integração do Twitch
 STR_5853    :{SMALLFONT}{BLACK}Liga/Desliga os efeitos sonoros
 STR_5854    :{SMALLFONT}{BLACK}Liga/Desliga música da atração
 STR_5855    :{SMALLFONT}{BLACK}Define tela cheia sem borda ou em modo janela
@@ -3484,7 +3315,7 @@ STR_6033    :Caminho para a instalação do RCT1:
 STR_6034    :{SMALLFONT}{BLACK}{STRING}
 STR_6035    :Por favor, selecione o diretório do seu RCT1
 STR_6036    :{SMALLFONT}{BLACK}Limpar
-STR_6037    :Por favor, seleciona um diretório válido do RCT1
+STR_6037    :O diretório selecionado não contém uma instalação válida de RollerCoaster 1.
 STR_6038    :{SMALLFONT}{BLACK}Se você instalou o RCT1, defina esta opção para seu diretório para carregar cenários, músicas, etc.
 STR_6039    :{SMALLFONT}{BLACK}Demole atração rapidamente
 STR_6040    :Editar Opções do Cenário
@@ -3651,17 +3482,6 @@ STR_6200    :Resetar data
 STR_6201    :{MONTH}
 STR_6202    :Estilo de chão virtual:
 STR_6203    :{SMALLFONT}{BLACK}Quando habilitado, um chão virtual será renderizado quando segurar a tecla Ctrl ou Shift para facilitar o posicionamento vertical dos elementos.
-STR_6204    :Tijolo
-STR_6205    :Ferro
-STR_6206    :Estuque cinza
-STR_6207    :Estuque amarelo
-STR_6208    :Estuque vermelho
-STR_6209    :Estuque roxo
-STR_6210    :Estuque verde
-STR_6211    :Arenito marrom
-STR_6212    :Arenito cinza
-STR_6213    :Arranha-céu A
-STR_6214    :Arranha-céu B
 STR_6215    :Construção
 STR_6216    :Operação
 STR_6217    :Atração / disponibilidade de trilho
@@ -3699,9 +3519,6 @@ STR_6248    :{WINDOW_COLOUR_1}Você quer reformar {STRINGID} por {CURRENCY}?
 STR_6249    :{WINDOW_COLOUR_1}Você quer reformar {STRINGID}?
 STR_6250    :{WINDOW_COLOUR_1}Você tem certeza que quer demolir completamente {STRINGID} e ganhar {CURRENCY}?
 STR_6251    :Brinquedo ainda não está vazio
-STR_6252    :Twitch API URL
-STR_6253    :{SMALLFONT}{BLACK}Fornece URL do API de integração do Twitch. Necessário para permitir a integração com Twitch.
-STR_6254    :URL do API de integração do Twitch:
 STR_6255    :URL não é válido
 STR_6256    :Efeitos de renderização
 STR_6257    :Vítreo (translúcido)
@@ -3724,7 +3541,7 @@ STR_6273    :Música
 STR_6274    :Impossível definir esquema de cor...
 STR_6275    :{WINDOW_COLOUR_2}Estilo da estação:
 STR_6276    :{RED}{STRINGID} está deixando visitantes presos, possivelmente por um tipo de brinquedo ou modo de operação inválido.
-STR_6277    :{WINDOW_COLOUR_2}Índice de estação: {BLACK}{COMMA16}
+STR_6277    :{WINDOW_COLOUR_2}Índice de estação: {BLACK}{STRINGID}
 STR_6278    :Quantidade de Autosave
 STR_6279    :{SMALLFONT}{BLACK}Número de autosaves que devem ser guardados
 STR_6280    :{SMALLFONT}{BLACK}Bate-papo
@@ -3778,6 +3595,59 @@ STR_6327    :Fundo transparente para capturas de tela gigantes
 STR_6328    :{SMALLFONT}{BLACK}Com essa opção habilitada, capturas de tela gigantes terão fundo transparente em vez da cor preta padrão.
 STR_6329    :{STRING}{STRINGID}
 STR_6330    :Baixando [{STRING}] de {STRING} ({COMMA16} / {COMMA16})
+STR_6331    :Criar Patos
+STR_6332    :Remover Patos
+STR_6333    :Aumentar fator de escala
+STR_6334    :Diminuir fator de escala
+STR_6335    :Inspetor de azulejo: Inserir elemento corrupto
+STR_6336    :Inspetor de azulejo: Copiar elemento
+STR_6337    :Inspetor de azulejo: Colar elemento
+STR_6338    :Inspetor de azulejo: Apagar elemento
+STR_6339    :Inspetor de azulejo: Mover elemento pra cima
+STR_6340    :Inspetor de azulejo: Mover elemento pra baixo
+STR_6341    :Inspetor de azulejo: Aumentar coordenada X
+STR_6342    :Inspetor de azulejo: Diminuir coordenada X
+STR_6343    :Inspetor de azulejo: Aumentar coordenada Y
+STR_6344    :Inspetor de azulejo: Diminuir coordenada Y
+STR_6345    :Inspetor de azulejo: Aumentar altura do elemento
+STR_6346    :Inspetor de azulejo: Diminuir altura do elemento
+STR_6347    :Adições de caminho não podem ser feitas em passagens de nível!
+STR_6348    :Remova a passagem de nível primeiro!
+STR_6349    :Sequência de título aleatória
+STR_6350    :Dispersar
+STR_6351    :Ferramenta de Dispersão de Cenário
+STR_6352    :Densidade
+STR_6353    :{SMALLFONT}{BLACK}Densidade baixa
+STR_6354    :{SMALLFONT}{BLACK}Densidade média
+STR_6355    :{SMALLFONT}{BLACK}Densidade alta
+STR_6356    :{SMALLFONT}{BLACK}Gerar patos se o parque tiver água
+STR_6357    :{SMALLFONT}{BLACK}Remover todos os patos do mapa
+STR_6358    :Página {UINT16}
+STR_6359    :{POP16}{POP16}Página {UINT16}
+STR_6360    :{SMALLFONT}{BLACK}{COMMA32}
+STR_6361    :Habilitar efeitos luminosos em atrações (experimental)
+STR_6362    :{SMALLFONT}{BLACK}Se habilitados, veículos de atrações com trilhos serão iluminados à noite.
+STR_6363    :Texto copiado para a área de transferência
+STR_6364    :{RED}{COMMA16} pessoa morreu em um acidente em {STRINGID}
+STR_6365    :Acidentes em atrações
+STR_6366    :Veículos presos ou parados
+STR_6367    :{WINDOW_COLOUR_2}Quadro de animação:
+STR_6368    :Por questão de compatibilidade, não é recomendado executar o OpenRCT2 com Wine. O OpenRCT2 tem suporte nativo a macOS, Linux, FreeBSD e OpenBSD.
+STR_6369    :Permitir construção de trilhos em alturas inválidas
+STR_6370    :{SMALLFONT}{BLACK}Permite a construção de trilhos em qualquer intervalo de altura
+STR_6371    :O caminho especificado contém uma instalação do RollerCoaster Tycoon 1, mas o arquivo “csg1i.dat” não existe. Esse arquivo tem de ser copiado do CD do RollerCoaster Tycoon 1 para a pasta “Data” do RollerCoaster Tycoon 1 instalado em sua memória.
+STR_6372    :O caminho especificado contém uma instalação do RollerCoaster Tycoon 1, mas essa versão não é compatível. O OpenRCT2 precisa da instalação do Loopy Landscapes ou RCT Deluxe para usar os recursos do RollerCoaster Tycoon 1.
+STR_6373    :Liga/desliga verificação de folga
+STR_6374    :F
+STR_6375    :Atração desconhecida
+STR_6376    :{WINDOW_COLOUR_2}Veículo: {NEWLINE}{BLACK}{STRINGID} para {STRINGID}
+STR_6377    :{WINDOW_COLOUR_2}Tipo: {BLACK}{STRINGID} para {STRINGID}
+STR_6378    :Lista de objetos sendo recebidos: {INT32} / {INT32}
+STR_6379    :Dados inválidos recebidos
+STR_6380    :Atualização disponível!
+STR_6381    :Faça parte do Discord do OpenRCT2!
+STR_6382    :Uma versão mais nova do OpenRCT2 está disponível: {STRING}!
+STR_6383    :Abrir página de download
 
 #############
 # Scenarios #

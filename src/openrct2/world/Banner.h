@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -10,17 +10,26 @@
 #pragma once
 
 #include "../common.h"
-#include "TileElement.h"
+#include "../ride/RideTypes.h"
+#include "Location.hpp"
 
-constexpr uint8_t BANNER_NULL = 255;
+#include <string>
+
+class Formatter;
+struct TileElement;
+struct WallElement;
+
+using BannerIndex = uint16_t;
+
+constexpr ObjectEntryIndex BANNER_NULL = OBJECT_ENTRY_INDEX_NULL;
 constexpr size_t MAX_BANNERS = 250;
-constexpr BannerIndex BANNER_INDEX_NULL = (BannerIndex)-1;
+constexpr BannerIndex BANNER_INDEX_NULL = static_cast<BannerIndex>(-1);
 
 constexpr uint8_t SCROLLING_MODE_NONE = 255;
 
 struct Banner
 {
-    uint8_t type = BANNER_NULL;
+    ObjectEntryIndex type = BANNER_NULL;
     uint8_t flags{};
     std::string text;
     uint8_t colour{};
@@ -34,7 +43,8 @@ struct Banner
     }
 
     std::string GetText() const;
-    size_t FormatTextTo(void* args) const;
+    void FormatTextTo(Formatter&, bool addColour) const;
+    void FormatTextTo(Formatter&) const;
 };
 
 enum BANNER_FLAGS
@@ -49,7 +59,7 @@ void banner_init();
 BannerIndex create_new_banner(uint8_t flags);
 TileElement* banner_get_tile_element(BannerIndex bannerIndex);
 WallElement* banner_get_scrolling_wall_tile_element(BannerIndex bannerIndex);
-uint8_t banner_get_closest_ride_index(int32_t x, int32_t y, int32_t z);
+uint8_t banner_get_closest_ride_index(const CoordsXYZ& mapPos);
 void banner_reset_broken_index();
 void fix_duplicated_banners();
 Banner* GetBanner(BannerIndex id);

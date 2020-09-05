@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -134,6 +134,7 @@ namespace CSChar
     constexpr char32_t c_acute = 0xDE;
     constexpr char32_t e_ogonek = 0xE6;
     constexpr char32_t n_acute = 0xF0;
+    constexpr char32_t o_circumflex = 0xF4;
     constexpr char32_t l_stroke = 0xF7;
     constexpr char32_t s_acute = 0xF8;
     constexpr char32_t z_acute = 0xFE;
@@ -144,6 +145,7 @@ namespace CSChar
 namespace UnicodeChar
 {
     // Latin alphabet
+    constexpr char32_t j = 0x6A;
     constexpr char32_t ae_uc = 0xC6;
     constexpr char32_t o_stroke_uc = 0xD8;
     constexpr char32_t y_acute_uc = 0xDD;
@@ -174,6 +176,7 @@ namespace UnicodeChar
     constexpr char32_t n_acute = 0x144;
     constexpr char32_t n_caron_uc = 0x147;
     constexpr char32_t n_caron = 0x148;
+    constexpr char32_t o_macron = 0x14D;
     constexpr char32_t o_double_acute_uc = 0x150;
     constexpr char32_t o_double_acute = 0x151;
     constexpr char32_t r_caron_uc = 0x158;

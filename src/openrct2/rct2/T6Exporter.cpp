@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -35,7 +35,7 @@ bool T6Exporter::SaveTrack(const utf8* path)
 {
     try
     {
-        auto fs = FileStream(path, FILE_MODE_WRITE);
+        auto fs = OpenRCT2::FileStream(path, OpenRCT2::FILE_MODE_WRITE);
         return SaveTrack(&fs);
     }
     catch (const std::exception& e)
@@ -45,15 +45,15 @@ bool T6Exporter::SaveTrack(const utf8* path)
     }
 }
 
-bool T6Exporter::SaveTrack(IStream* stream)
+bool T6Exporter::SaveTrack(OpenRCT2::IStream* stream)
 {
-    MemoryStream tempStream;
+    OpenRCT2::MemoryStream tempStream;
     tempStream.WriteValue<uint8_t>(_trackDesign->type);
     tempStream.WriteValue<uint8_t>(_trackDesign->vehicle_type);
     tempStream.WriteValue<uint32_t>(_trackDesign->flags);
     tempStream.WriteValue<uint8_t>(_trackDesign->ride_mode);
     tempStream.WriteValue<uint8_t>((_trackDesign->colour_scheme & 0x3) | (2 << 2));
-    tempStream.WriteArray(_trackDesign->vehicle_colours, RCT12_MAX_VEHICLE_COLOURS);
+    tempStream.WriteArray(_trackDesign->vehicle_colours.data(), RCT12_MAX_VEHICLE_COLOURS);
     tempStream.WriteValue<uint8_t>(0);
     tempStream.WriteValue<uint8_t>(_trackDesign->entrance_style);
     tempStream.WriteValue<uint8_t>(_trackDesign->total_air_time);
@@ -107,8 +107,8 @@ bool T6Exporter::SaveTrack(IStream* stream)
 
         for (const auto& entranceElement : _trackDesign->entrance_elements)
         {
-            tempStream.WriteValue<uint8_t>(entranceElement.z);
-            tempStream.WriteValue<uint8_t>(entranceElement.direction);
+            tempStream.WriteValue<uint8_t>(entranceElement.z == -1 ? static_cast<uint8_t>(0x80) : entranceElement.z);
+            tempStream.WriteValue<uint8_t>(entranceElement.direction | (entranceElement.isExit << 7));
             tempStream.WriteValue<int16_t>(entranceElement.x);
             tempStream.WriteValue<int16_t>(entranceElement.y);
         }

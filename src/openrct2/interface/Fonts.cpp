@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -30,6 +30,12 @@ TTFFontSetDescriptor TTFFontMSGothic = { {
     { "msgothic.ttc", "MS PGothic", 12, 1,  0, 14, HINTING_THRESHOLD_MEDIUM, nullptr },
 } };
 
+TTFFontSetDescriptor TTFFontNotoSansMono = { {
+    { "NotoSansCJK-Regular.ttc", "Noto Sans Mono CJK JP",  9, 1, -2,  9, HINTING_THRESHOLD_MEDIUM, nullptr },
+    { "NotoSansCJK-Regular.ttc", "Noto Sans Mono CJK JP", 12, 1, -3, 14, HINTING_THRESHOLD_MEDIUM, nullptr },
+    { "NotoSansCJK-Regular.ttc", "Noto Sans Mono CJK JP", 12, 1, -3, 14, HINTING_THRESHOLD_MEDIUM, nullptr },
+} };
+
 TTFFontSetDescriptor TTFFontHiragano = { {
     { u8"ヒラギノ丸ゴ ProN W4.ttc", "Hiragino Maru Gothic ProN",  9, 1,  1,  9, HINTING_THRESHOLD_MEDIUM, nullptr },
     { u8"ヒラギノ丸ゴ ProN W4.ttc", "Hiragino Maru Gothic ProN", 11, 1,  0, 13, HINTING_THRESHOLD_MEDIUM, nullptr },
@@ -49,7 +55,7 @@ TTFFontSetDescriptor TTFFontHeiti = { {
 } };
 
 TTFFontSetDescriptor TTFFontSimSun = { {
-    {   "msyh.ttc",  "YaHei",  9, -1, -1,  9, HINTING_THRESHOLD_MEDIUM, nullptr },
+    {   "msyh.ttc",  "Microsoft YaHei",  9, -1, -1,  9, HINTING_THRESHOLD_MEDIUM, nullptr },
     { "simsun.ttc", "SimSun", 11,  1, -1, 14, HINTING_THRESHOLD_MEDIUM, nullptr },
     { "simsun.ttc", "SimSun", 12,  1, -2, 15, HINTING_THRESHOLD_MEDIUM, nullptr },
 } };

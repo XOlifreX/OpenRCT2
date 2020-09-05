@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -13,21 +13,41 @@
 #include "../object/Object.h"
 #include "Ride.h"
 
-typedef uint16_t track_type_t;
+constexpr const uint16_t RideConstructionSpecialPieceSelected = 0x100;
+
+constexpr const int32_t BLOCK_BRAKE_BASE_SPEED = 0x20364;
+
+using track_type_t = uint16_t;
+using roll_type_t = uint8_t;
+using pitch_type_t = uint8_t;
 
 #pragma pack(push, 1)
 struct rct_trackdefinition
 {
     uint8_t type;
-    uint8_t vangle_end;
-    uint8_t vangle_start;
-    uint8_t bank_end;
-    uint8_t bank_start;
+    pitch_type_t vangle_end;
+    pitch_type_t vangle_start;
+    roll_type_t bank_end;
+    roll_type_t bank_start;
     int8_t preview_z_offset;
     uint8_t pad[2] = {};
 };
 assert_struct_size(rct_trackdefinition, 8);
 #pragma pack(pop)
+
+struct PitchAndRoll
+{
+    pitch_type_t Pitch;
+    roll_type_t Roll;
+};
+constexpr bool operator==(const PitchAndRoll& vb1, const PitchAndRoll& vb2)
+{
+    return vb1.Pitch == vb2.Pitch && vb1.Roll == vb2.Roll;
+}
+constexpr bool operator!=(const PitchAndRoll& vb1, const PitchAndRoll& vb2)
+{
+    return !(vb1 == vb2);
+}
 
 /* size 0x0A */
 struct rct_preview_track
@@ -38,7 +58,7 @@ struct rct_preview_track
     int16_t z;     // 0x05
     uint8_t var_07;
     QuarterTile var_08;
-    uint8_t var_09;
+    uint8_t flags;
 };
 
 /* size 0x0A */
@@ -50,6 +70,13 @@ struct rct_track_coordinates
     int16_t z_end;         // 0x04
     int16_t x;             // 0x06
     int16_t y;             // 0x08
+};
+
+enum
+{
+    RCT_PREVIEW_TRACK_FLAG_0 = (1 << 0),
+    RCT_PREVIEW_TRACK_FLAG_1 = (1 << 1),
+    RCT_PREVIEW_TRACK_FLAG_IS_VERTICAL = (1 << 2),
 };
 
 enum
@@ -66,6 +93,8 @@ enum
     TRACK_ELEMENT_FLAGS2_CABLE_LIFT = 1 << 2,
     TRACK_ELEMENT_FLAGS2_HIGHLIGHT = 1 << 3,
     TRACK_ELEMENT_FLAGS2_HAS_GREEN_LIGHT = 1 << 4,
+    TRACK_ELEMENT_FLAGS2_BLOCK_BRAKE_CLOSED = 1 << 5,
+    TRACK_ELEMENT_FLAGS2_INDESTRUCTIBLE_TRACK_PIECE = 1 << 6,
 };
 
 enum
@@ -78,6 +107,8 @@ enum
 };
 
 #define MAX_STATION_PLATFORM_LENGTH 32
+constexpr uint16_t const MAX_TRACK_HEIGHT = 254 * COORDS_Z_STEP;
+constexpr uint8_t const DEFAULT_SEAT_ROTATION = 4;
 
 enum
 {
@@ -131,6 +162,7 @@ enum
     TRACK_QUARTER_LOOP,
     TRACK_SPINNING_TUNNEL,
     TRACK_ROTATION_CONTROL_TOGGLE,
+    TRACK_BOOSTER = TRACK_ROTATION_CONTROL_TOGGLE,
     TRACK_INLINE_TWIST_UNINVERTED,
     TRACK_INLINE_TWIST_INVERTED,
     TRACK_QUARTER_LOOP_UNINVERTED,
@@ -138,15 +170,16 @@ enum
     TRACK_RAPIDS,
     TRACK_HALF_LOOP_UNINVERTED,
     TRACK_HALF_LOOP_INVERTED,
-    TRACK_BOOSTER = TRACK_ROTATION_CONTROL_TOGGLE,
 
-    TRACK_WATERFALL = 152,
-    TRACK_WHIRLPOOL = 152,
-    TRACK_BRAKE_FOR_DROP = 172,
-    TRACK_190 = 190,
-    TRACK_192 = 192,
-    TRACK_194 = 194,
-    TRACK_MINI_GOLF_HOLE = 195,
+    TRACK_WATERFALL,
+    TRACK_WHIRLPOOL,
+    TRACK_BRAKE_FOR_DROP,
+    TRACK_CORKSCREW_UNINVERTED,
+    TRACK_CORKSCREW_INVERTED,
+    TRACK_HEARTLINE_TRANSFER,
+    TRACK_MINI_GOLF_HOLE,
+
+    TRACK_GROUP_COUNT,
 };
 
 enum
@@ -310,9 +343,9 @@ enum
     TRACK_ELEM_BRAKES,
     TRACK_ELEM_ROTATION_CONTROL_TOGGLE = 100,
     TRACK_ELEM_BOOSTER = 100,
-    TRACK_ELEM_INVERTED_90_DEG_UP_TO_FLAT_QUARTER_LOOP = 101,
     TRACK_ELEM_MAZE = 101,
-    TRACK_ELEM_255_ALIAS = 101, // Used by the multi-dimension coaster, as TD6 cannot handle index 255.
+    TRACK_ELEM_INVERTED_90_DEG_UP_TO_FLAT_QUARTER_LOOP_ALIAS = 101, // Used by the multi-dimension coaster, as TD6 cannot handle
+                                                                    // index 255.
     TRACK_ELEM_LEFT_QUARTER_BANKED_HELIX_LARGE_UP,
     TRACK_ELEM_RIGHT_QUARTER_BANKED_HELIX_LARGE_UP,
     TRACK_ELEM_LEFT_QUARTER_BANKED_HELIX_LARGE_DOWN,
@@ -466,7 +499,9 @@ enum
     TRACK_ELEM_RIGHT_QUARTER_TURN_1_TILE_90_DEG_DOWN,
     TRACK_ELEM_MULTIDIM_90_DEG_UP_TO_INVERTED_FLAT_QUARTER_LOOP,
     TRACK_ELEM_MULTIDIM_FLAT_TO_90_DEG_DOWN_QUARTER_LOOP,
-    TRACK_ELEM_255,
+    TRACK_ELEM_MULTIDIM_INVERTED_90_DEG_UP_TO_FLAT_QUARTER_LOOP,
+
+    TRACK_ELEM_COUNT,
 };
 
 enum
@@ -495,11 +530,6 @@ enum
 
 enum
 {
-    TRACK_ELEMENT_LOCATION_IS_UNDERGROUND = 2,
-};
-
-enum
-{
     GC_SET_MAZE_TRACK_BUILD = 0,
     GC_SET_MAZE_TRACK_MOVE = 1,
     GC_SET_MAZE_TRACK_FILL = 2,
@@ -519,6 +549,9 @@ struct track_circuit_iterator
 extern const rct_trackdefinition FlatRideTrackDefinitions[256];
 extern const rct_trackdefinition TrackDefinitions[256];
 
+PitchAndRoll TrackPitchAndRollStart(track_type_t trackType);
+PitchAndRoll TrackPitchAndRollEnd(track_type_t trackType);
+
 int32_t track_is_connected_by_shape(TileElement* a, TileElement* b);
 
 const rct_preview_track* get_track_def_from_ride(Ride* ride, int32_t trackType);
@@ -533,20 +566,19 @@ bool track_circuit_iterators_match(const track_circuit_iterator* firstIt, const 
 void track_get_back(CoordsXYE* input, CoordsXYE* output);
 void track_get_front(CoordsXYE* input, CoordsXYE* output);
 
-bool track_element_is_block_start(TileElement* trackElement);
-bool track_element_is_covered(int32_t trackElementType);
-bool track_element_is_station(TileElement* trackElement);
+bool track_element_is_covered(track_type_t trackElementType);
+bool track_type_is_station(track_type_t trackType);
 
-int32_t track_get_actual_bank(TileElement* tileElement, int32_t bank);
-int32_t track_get_actual_bank_2(int32_t rideType, bool isInverted, int32_t bank);
-int32_t track_get_actual_bank_3(rct_vehicle* vehicle, TileElement* tileElement);
+roll_type_t track_get_actual_bank(TileElement* tileElement, roll_type_t bank);
+roll_type_t track_get_actual_bank_2(int32_t rideType, bool isInverted, roll_type_t bank);
+roll_type_t track_get_actual_bank_3(bool useInvertedSprites, TileElement* tileElement);
 
-bool track_add_station_element(int32_t x, int32_t y, int32_t z, int32_t direction, ride_id_t rideIndex, int32_t flags);
-bool track_remove_station_element(int32_t x, int32_t y, int32_t z, int32_t direction, ride_id_t rideIndex, int32_t flags);
+bool track_add_station_element(CoordsXYZD loc, ride_id_t rideIndex, int32_t flags, bool fromTrackDesign);
+bool track_remove_station_element(const CoordsXYZD& loc, ride_id_t rideIndex, int32_t flags);
 
 money32 maze_set_track(
     uint16_t x, uint16_t y, uint16_t z, uint8_t flags, bool initialPlacement, uint8_t direction, ride_id_t rideIndex,
     uint8_t mode);
 
-bool track_element_is_booster(uint8_t rideType, uint8_t trackType);
-bool track_element_has_speed_setting(uint8_t trackType);
+bool TrackTypeIsBooster(uint8_t rideType, track_type_t trackType);
+bool TrackTypeHasSpeedSetting(track_type_t trackType);

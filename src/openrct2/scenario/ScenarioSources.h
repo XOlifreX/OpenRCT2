@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -132,4 +132,17 @@ enum
     SC_MEGAWORLD_PARK,
     SC_VENUS_PONDS,
     SC_MICRO_PARK,
+
+    // Competition scenarios (Build the best ... you can)
+    SC_STEEL_TWISTER_COMPETITION = 110,
+    SC_GO_KARTS_COMPETITION = 114,
+    SC_STEEL_CORKSCREW_COMPETITION = 116,
+    SC_MINE_TRAIN_COMPETITION = 117,
+    SC_STEEL_ROLLER_COASTER_COMPETITION = 119,
+    SC_BOBSLED_COMPETITION = 120,
+    SC_INVERTED_ROLLER_COASTER_COMPETITION = 123,
+    SC_SUSPENDED_ROLLER_COASTER_COMPETITION = 124,
+    SC_STAND_UP_STEEL_ROLLER_COASTER_COMPETITION = 125,
+    SC_WOODEN_ROLLER_COASTER_COMPETITION = 126,
+    SC_STEEL_MINI_ROLLER_COASTER_COMPETITION = 127,
 };

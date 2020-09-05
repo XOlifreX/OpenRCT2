@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -17,7 +17,7 @@
 #include <string>
 #include <unordered_map>
 
-class NetworkPacket;
+struct NetworkPacket;
 
 class NetworkPlayer final
 {
@@ -31,7 +31,7 @@ public:
     uint32_t CommandsRan = 0;
     int32_t LastAction = -999;
     uint32_t LastActionTime = 0;
-    LocationXYZ16 LastActionCoord = {};
+    CoordsXYZ LastActionCoord = {};
     Peep* PickupPeep = nullptr;
     int32_t PickupPeepOldX = LOCATION_NULL;
     std::string KeyHash;

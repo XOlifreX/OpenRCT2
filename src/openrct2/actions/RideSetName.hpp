@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -25,7 +25,7 @@
 DEFINE_GAME_ACTION(RideSetNameAction, GAME_COMMAND_SET_RIDE_NAME, GameActionResult)
 {
 private:
-    NetworkRideId_t _rideIndex{ -1 };
+    NetworkRideId_t _rideIndex{ RideIdNewNull };
     std::string _name;
 
 public:
@@ -36,6 +36,12 @@ public:
         : _rideIndex(rideIndex)
         , _name(name)
     {
+    }
+
+    void AcceptParameters(GameActionParameterVisitor & visitor) override
+    {
+        visitor.Visit("ride", _rideIndex);
+        visitor.Visit("name", _name);
     }
 
     uint16_t GetActionFlags() const override
@@ -91,13 +97,13 @@ public:
 
         // Refresh windows that display ride name
         auto windowManager = OpenRCT2::GetContext()->GetUiContext()->GetWindowManager();
+        windowManager->BroadcastIntent(Intent(INTENT_ACTION_REFRESH_CAMPAIGN_RIDE_LIST));
         windowManager->BroadcastIntent(Intent(INTENT_ACTION_REFRESH_RIDE_LIST));
         windowManager->BroadcastIntent(Intent(INTENT_ACTION_REFRESH_GUEST_LIST));
 
         auto res = std::make_unique<GameActionResult>();
-        res->Position.x = ride->overall_view.x * 32 + 16;
-        res->Position.y = ride->overall_view.y * 32 + 16;
-        res->Position.z = tile_element_height(res->Position);
+        auto location = ride->overall_view.ToTileCentre();
+        res->Position = { location, tile_element_height(location) };
 
         return res;
     }

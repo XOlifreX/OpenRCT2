@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -10,24 +10,29 @@
 #pragma once
 
 #include "common.h"
+#include "world/Location.hpp"
 
 #include <memory>
 #include <string>
 
-interface IObjectManager;
-interface IObjectRepository;
-interface IScenarioRepository;
-interface IStream;
-interface ITrackDesignRepository;
-interface IGameStateSnapshots;
+struct IObjectManager;
+struct IObjectRepository;
+struct IScenarioRepository;
+namespace OpenRCT2
+{
+    struct IStream;
+}
+struct ITrackDesignRepository;
+struct IGameStateSnapshots;
 
 class Intent;
 struct rct_window;
 using rct_windowclass = uint8_t;
+struct NewVersionInfo;
 
 struct CursorState
 {
-    int32_t x, y;
+    ScreenCoordsXY position;
     uint8_t left, middle, right, any;
     int32_t wheel;
     int32_t old;
@@ -66,17 +71,17 @@ namespace OpenRCT2
 {
     class GameState;
 
-    interface IPlatformEnvironment;
-    interface IReplayManager;
+    struct IPlatformEnvironment;
+    struct IReplayManager;
 
     namespace Audio
     {
-        interface IAudioContext;
+        struct IAudioContext;
     }
 
     namespace Drawing
     {
-        interface IDrawingEngine;
+        struct IDrawingEngine;
     }
 
     namespace Localisation
@@ -84,20 +89,25 @@ namespace OpenRCT2
         class LocalisationService;
     }
 
+    namespace Scripting
+    {
+        class ScriptEngine;
+    }
+
     namespace Ui
     {
-        interface IUiContext;
+        struct IUiContext;
     }
 
     namespace Paint
     {
-        interface Painter;
+        struct Painter;
     }
 
     /**
      * Represents an instance of OpenRCT2 and can be used to get various services.
      */
-    interface IContext
+    struct IContext
     {
         virtual ~IContext() = default;
 
@@ -108,6 +118,9 @@ namespace OpenRCT2
         virtual Localisation::LocalisationService& GetLocalisationService() abstract;
         virtual IObjectManager& GetObjectManager() abstract;
         virtual IObjectRepository& GetObjectRepository() abstract;
+#ifdef ENABLE_SCRIPTING
+        virtual Scripting::ScriptEngine& GetScriptEngine() abstract;
+#endif
         virtual ITrackDesignRepository* GetTrackDesignRepository() abstract;
         virtual IScenarioRepository* GetScenarioRepository() abstract;
         virtual IReplayManager* GetReplayManager() abstract;
@@ -122,12 +135,14 @@ namespace OpenRCT2
         virtual void InitialiseDrawingEngine() abstract;
         virtual void DisposeDrawingEngine() abstract;
         virtual bool LoadParkFromFile(const std::string& path, bool loadTitleScreenOnFail = false) abstract;
-        virtual bool LoadParkFromStream(IStream * stream, const std::string& path, bool loadTitleScreenFirstOnFail = false)
-            abstract;
+        virtual bool LoadParkFromStream(
+            IStream* stream, const std::string& path, bool loadTitleScreenFirstOnFail = false) abstract;
         virtual void WriteLine(const std::string& s) abstract;
         virtual void Finish() abstract;
         virtual void Quit() abstract;
 
+        virtual bool HasNewVersionInfo() const abstract;
+        virtual const NewVersionInfo* GetNewVersionInfo() const abstract;
         /**
          * This is deprecated, use IPlatformEnvironment.
          */
@@ -218,9 +233,9 @@ void context_setcurrentcursor(int32_t cursor);
 void context_update_cursor_scale();
 void context_hide_cursor();
 void context_show_cursor();
-void context_get_cursor_position(int32_t* x, int32_t* y);
-void context_get_cursor_position_scaled(int32_t* x, int32_t* y);
-void context_set_cursor_position(int32_t x, int32_t y);
+ScreenCoordsXY context_get_cursor_position();
+ScreenCoordsXY context_get_cursor_position_scaled();
+void context_set_cursor_position(const ScreenCoordsXY& cursorPosition);
 const CursorState* context_get_cursor_state();
 const uint8_t* context_get_keys_state();
 const uint8_t* context_get_keys_pressed();

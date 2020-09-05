@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -28,12 +28,12 @@ DEFINE_GAME_ACTION(SmallSceneryRemoveAction, GAME_COMMAND_REMOVE_SCENERY, GameAc
 private:
     CoordsXYZ _loc;
     uint8_t _quadrant;
-    uint8_t _sceneryType;
+    ObjectEntryIndex _sceneryType;
 
 public:
     SmallSceneryRemoveAction() = default;
 
-    SmallSceneryRemoveAction(CoordsXYZ location, uint8_t quadrant, uint8_t sceneryType)
+    SmallSceneryRemoveAction(const CoordsXYZ& location, uint8_t quadrant, ObjectEntryIndex sceneryType)
         : _loc(location)
         , _quadrant(quadrant)
         , _sceneryType(sceneryType)
@@ -56,7 +56,7 @@ public:
     {
         GameActionResult::Ptr res = std::make_unique<GameActionResult>();
 
-        if (!map_is_location_valid(_loc))
+        if (!LocationValid(_loc))
         {
             return MakeResult(GA_ERROR::INVALID_PARAMETERS, STR_CANT_REMOVE_THIS, STR_LAND_NOT_OWNED_BY_PARK);
         }
@@ -68,7 +68,7 @@ public:
         }
 
         res->Cost = entry->small_scenery.removal_price * 10;
-        res->ExpenditureType = RCT_EXPENDITURE_TYPE_LANDSCAPING;
+        res->Expenditure = ExpenditureType::Landscaping;
         res->Position = _loc;
 
         if (!(gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) && !(GetFlags() & GAME_COMMAND_FLAG_GHOST) && !gCheatsSandboxMode)
@@ -115,7 +115,7 @@ public:
         }
 
         res->Cost = entry->small_scenery.removal_price * 10;
-        res->ExpenditureType = RCT_EXPENDITURE_TYPE_LANDSCAPING;
+        res->Expenditure = ExpenditureType::Landscaping;
         res->Position = _loc;
 
         TileElement* tileElement = FindSceneryElement();
@@ -126,7 +126,7 @@ public:
 
         res->Position.z = tile_element_height(res->Position);
 
-        map_invalidate_tile_full(_loc.x, _loc.y);
+        map_invalidate_tile_full(_loc);
         tile_element_remove(tileElement);
 
         return res;
@@ -135,7 +135,7 @@ public:
 private:
     TileElement* FindSceneryElement() const
     {
-        TileElement* tileElement = map_get_first_element_at(_loc.x / 32, _loc.y / 32);
+        TileElement* tileElement = map_get_first_element_at(_loc);
         if (!tileElement)
             return nullptr;
 
@@ -145,7 +145,7 @@ private:
                 continue;
             if ((tileElement->AsSmallScenery()->GetSceneryQuadrant()) != _quadrant)
                 continue;
-            if (tileElement->base_height != _loc.z / 8)
+            if (tileElement->GetBaseZ() != _loc.z)
                 continue;
             if (tileElement->AsSmallScenery()->GetEntryIndex() != _sceneryType)
                 continue;

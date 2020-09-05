@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -17,6 +17,8 @@
 #include "../localisation/StringIds.h"
 #include "../management/Finance.h"
 #include "../ride/Ride.h"
+#include "../ui/UiContext.h"
+#include "../ui/WindowManager.h"
 #include "../world/Park.h"
 #include "../world/Sprite.h"
 #include "GameAction.h"
@@ -31,7 +33,7 @@ static rct_string_id _StatusErrorTitles[] = {
 DEFINE_GAME_ACTION(RideSetStatusAction, GAME_COMMAND_SET_RIDE_STATUS, GameActionResult)
 {
 private:
-    NetworkRideId_t _rideIndex{ -1 };
+    NetworkRideId_t _rideIndex{ RideIdNewNull };
     uint8_t _status = RIDE_STATUS_CLOSED;
 
 public:
@@ -42,6 +44,12 @@ public:
         : _rideIndex(rideIndex)
         , _status(status)
     {
+    }
+
+    void AcceptParameters(GameActionParameterVisitor & visitor) override
+    {
+        visitor.Visit("ride", _rideIndex);
+        visitor.Visit("status", _status);
     }
 
     uint16_t GetActionFlags() const override
@@ -70,8 +78,20 @@ public:
             return res;
         }
 
+        if (_status >= RIDE_STATUS_COUNT)
+        {
+            log_warning("Invalid ride status %u for ride %u", uint32_t(_status), uint32_t(_rideIndex));
+            res->Error = GA_ERROR::INVALID_PARAMETERS;
+            res->ErrorTitle = STR_RIDE_DESCRIPTION_UNKNOWN;
+            res->ErrorMessage = STR_NONE;
+            return res;
+        }
+
         res->ErrorTitle = _StatusErrorTitles[_status];
-        ride->FormatNameTo(res->ErrorMessageArgs.data() + 6);
+
+        Formatter ft(res->ErrorMessageArgs.data());
+        ft.Increment(6);
+        ride->FormatNameTo(ft);
         if (_status != ride->status)
         {
             if (_status == RIDE_STATUS_SIMULATING && (ride->lifecycle_flags & RIDE_LIFECYCLE_BROKEN_DOWN))
@@ -106,7 +126,7 @@ public:
     GameActionResult::Ptr Execute() const override
     {
         GameActionResult::Ptr res = std::make_unique<GameActionResult>();
-        res->ExpenditureType = RCT_EXPENDITURE_TYPE_RIDE_RUNNING_COSTS;
+        res->Expenditure = ExpenditureType::RideRunningCosts;
 
         auto ride = get_ride(_rideIndex);
         if (ride == nullptr)
@@ -119,12 +139,14 @@ public:
         }
 
         res->ErrorTitle = _StatusErrorTitles[_status];
-        ride->FormatNameTo(res->ErrorMessageArgs.data() + 6);
-        if (ride->overall_view.xy != RCT_XY8_UNDEFINED)
+
+        Formatter ft(res->ErrorMessageArgs.data());
+        ft.Increment(6);
+        ride->FormatNameTo(ft);
+        if (!ride->overall_view.isNull())
         {
-            res->Position.x = ride->overall_view.x * 32 + 16;
-            res->Position.y = ride->overall_view.y * 32 + 16;
-            res->Position.z = tile_element_height(res->Position);
+            auto location = ride->overall_view.ToTileCentre();
+            res->Position = { location, tile_element_height(res->Position) };
         }
 
         switch (_status)
@@ -220,6 +242,9 @@ public:
                 Guard::Assert(false, "Invalid status passed: %u", _status);
                 break;
         }
+        auto windowManager = OpenRCT2::GetContext()->GetUiContext()->GetWindowManager();
+        windowManager->BroadcastIntent(Intent(INTENT_ACTION_REFRESH_CAMPAIGN_RIDE_LIST));
+
         return res;
     }
 };

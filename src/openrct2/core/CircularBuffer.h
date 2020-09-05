@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -10,17 +10,18 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 
 template<typename _TType, size_t _TMax> class CircularBuffer
 {
 public:
-    typedef _TType value_type;
-    typedef _TType* pointer;
-    typedef const _TType* const_pointer;
-    typedef _TType& reference;
-    typedef const _TType& const_reference;
-    typedef size_t size_type;
-    typedef ptrdiff_t difference_type;
+    using value_type = _TType;
+    using pointer = _TType*;
+    using const_pointer = const _TType*;
+    using reference = _TType&;
+    using const_reference = const _TType&;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
 
     reference front()
     {

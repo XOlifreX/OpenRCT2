@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -10,18 +10,22 @@
 #pragma once
 
 #include "../common.h"
-#include "../core/Optional.hpp"
 #include "../object/ObjectList.h"
 #include "../scenario/Scenario.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
-interface IStream;
+namespace OpenRCT2
+{
+    struct IStream;
+}
+
 struct ObjectRepositoryItem;
 struct RCT12SpriteBase;
-struct rct_sprite_common;
+struct SpriteBase;
 
 /**
  * Class to export RollerCoaster Tycoon 2 scenarios (*.SC6) and saved games (*.SV6).
@@ -35,26 +39,26 @@ public:
     S6Exporter();
 
     void SaveGame(const utf8* path);
-    void SaveGame(IStream* stream);
+    void SaveGame(OpenRCT2::IStream* stream);
     void SaveScenario(const utf8* path);
-    void SaveScenario(IStream* stream);
+    void SaveScenario(OpenRCT2::IStream* stream);
     void Export();
     void ExportParkName();
     void ExportRides();
     void ExportRide(rct2_ride* dst, const Ride* src);
     void ExportSprites();
     void ExportSprite(RCT2Sprite* dst, const rct_sprite* src);
-    void ExportSpriteCommonProperties(RCT12SpriteBase* dst, const rct_sprite_common* src);
-    void ExportSpriteVehicle(RCT2SpriteVehicle* dst, const rct_vehicle* src);
+    void ExportSpriteCommonProperties(RCT12SpriteBase* dst, const SpriteBase* src);
+    void ExportSpriteVehicle(RCT2SpriteVehicle* dst, const Vehicle* src);
     void ExportSpritePeep(RCT2SpritePeep* dst, const Peep* src);
-    void ExportSpriteMisc(RCT12SpriteBase* dst, const rct_sprite_common* src);
-    void ExportSpriteLitter(RCT12SpriteLitter* dst, const rct_litter* src);
+    void ExportSpriteMisc(RCT12SpriteBase* dst, const SpriteBase* src);
+    void ExportSpriteLitter(RCT12SpriteLitter* dst, const Litter* src);
 
 private:
     rct_s6_data _s6{};
     std::vector<std::string> _userStrings;
 
-    void Save(IStream* stream, bool isScenario);
+    void Save(OpenRCT2::IStream* stream, bool isScenario);
     static uint32_t GetLoanHash(money32 initialCash, money32 bankLoan, uint32_t maxBankLoan);
     void ExportResearchedRideTypes();
     void ExportResearchedRideEntries();
@@ -72,6 +76,6 @@ private:
     void ExportTileElements();
     void ExportTileElement(RCT12TileElement* dst, TileElement* src);
 
-    opt::optional<uint16_t> AllocateUserString(const std::string_view& value);
+    std::optional<uint16_t> AllocateUserString(const std::string_view& value);
     void ExportUserStrings();
 };

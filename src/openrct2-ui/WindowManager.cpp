@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -44,7 +44,7 @@ public:
             case WC_BOTTOM_TOOLBAR:
                 return window_game_bottom_toolbar_open();
             case WC_CHANGELOG:
-                return window_changelog_open();
+                return OpenView(WV_CHANGELOG);
             case WC_CHEATS:
                 return window_cheats_open();
             case WC_CLEAR_SCENERY:
@@ -101,6 +101,8 @@ public:
                 return window_save_prompt_open();
             case WC_SCENERY:
                 return window_scenery_open();
+            case WC_SCENERY_SCATTER:
+                return window_scenery_scatter_open();
 #ifndef DISABLE_NETWORK
             case WC_SERVER_LIST:
                 return window_server_list_open();
@@ -170,6 +172,10 @@ public:
                 return window_editor_bottom_toolbar_open();
             case WV_EDITOR_MAIN:
                 return window_editor_main_open();
+            case WV_CHANGELOG:
+                return window_changelog_open(WV_CHANGELOG);
+            case WV_NEW_VERSION_INFO:
+                return window_changelog_open(WV_NEW_VERSION_INFO);
             default:
                 return nullptr;
         }
@@ -205,31 +211,39 @@ public:
         return window_error_open(title, message);
     }
 
+    rct_window* ShowError(const std::string_view& title, const std::string_view& message) override
+    {
+        return window_error_open(title, message);
+    }
+
     rct_window* OpenIntent(Intent* intent) override
     {
         switch (intent->GetWindowClass())
         {
             case WC_PEEP:
-                return window_guest_open((Peep*)intent->GetPointerExtra(INTENT_EXTRA_PEEP));
+                return window_guest_open(static_cast<Peep*>(intent->GetPointerExtra(INTENT_EXTRA_PEEP)));
             case WC_FIRE_PROMPT:
-                return window_staff_fire_prompt_open((Peep*)intent->GetPointerExtra(INTENT_EXTRA_PEEP));
+                return window_staff_fire_prompt_open(static_cast<Peep*>(intent->GetPointerExtra(INTENT_EXTRA_PEEP)));
             case WC_INSTALL_TRACK:
                 return window_install_track_open(intent->GetStringExtra(INTENT_EXTRA_PATH).c_str());
             case WC_GUEST_LIST:
                 return window_guest_list_open_with_filter(
-                    intent->GetSIntExtra(INTENT_EXTRA_GUEST_LIST_FILTER), intent->GetSIntExtra(INTENT_EXTRA_RIDE_ID));
+                    static_cast<GuestListFilterType>(intent->GetSIntExtra(INTENT_EXTRA_GUEST_LIST_FILTER)),
+                    intent->GetSIntExtra(INTENT_EXTRA_RIDE_ID));
             case WC_LOADSAVE:
             {
                 uint32_t type = intent->GetUIntExtra(INTENT_EXTRA_LOADSAVE_TYPE);
                 std::string defaultName = intent->GetStringExtra(INTENT_EXTRA_PATH);
-                loadsave_callback callback = (loadsave_callback)intent->GetPointerExtra(INTENT_EXTRA_CALLBACK);
+                loadsave_callback callback = reinterpret_cast<loadsave_callback>(
+                    intent->GetPointerExtra(INTENT_EXTRA_CALLBACK));
                 TrackDesign* trackDesign = static_cast<TrackDesign*>(intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN));
                 rct_window* w = window_loadsave_open(type, defaultName.c_str(), callback, trackDesign);
 
                 return w;
             }
             case WC_MANAGE_TRACK_DESIGN:
-                return window_track_manage_open((track_design_file_ref*)intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN));
+                return window_track_manage_open(
+                    static_cast<track_design_file_ref*>(intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN)));
             case WC_NETWORK_STATUS:
             {
                 std::string message = intent->GetStringExtra(INTENT_EXTRA_MESSAGE);
@@ -239,7 +253,7 @@ public:
             case WC_OBJECT_LOAD_ERROR:
             {
                 std::string path = intent->GetStringExtra(INTENT_EXTRA_PATH);
-                const rct_object_entry* objects = (rct_object_entry*)intent->GetPointerExtra(INTENT_EXTRA_LIST);
+                const rct_object_entry* objects = static_cast<rct_object_entry*>(intent->GetPointerExtra(INTENT_EXTRA_LIST));
                 size_t count = intent->GetUIntExtra(INTENT_EXTRA_LIST_COUNT);
                 window_object_load_error_open(const_cast<utf8*>(path.c_str()), count, objects);
 
@@ -251,30 +265,31 @@ public:
                 return ride == nullptr ? nullptr : window_ride_main_open(ride);
             }
             case WC_TRACK_DESIGN_PLACE:
-                return window_track_place_open((track_design_file_ref*)intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN));
+                return window_track_place_open(
+                    static_cast<track_design_file_ref*>(intent->GetPointerExtra(INTENT_EXTRA_TRACK_DESIGN)));
             case WC_TRACK_DESIGN_LIST:
             {
-                ride_list_item rideItem;
-                rideItem.type = intent->GetUIntExtra(INTENT_EXTRA_RIDE_TYPE);
-                rideItem.entry_index = intent->GetUIntExtra(INTENT_EXTRA_RIDE_ENTRY_INDEX);
+                RideSelection rideItem;
+                rideItem.Type = intent->GetUIntExtra(INTENT_EXTRA_RIDE_TYPE);
+                rideItem.EntryIndex = intent->GetUIntExtra(INTENT_EXTRA_RIDE_ENTRY_INDEX);
                 return window_track_list_open(rideItem);
             }
             case WC_SCENARIO_SELECT:
                 return window_scenarioselect_open(
-                    (scenarioselect_callback)intent->GetPointerExtra(INTENT_EXTRA_CALLBACK), false);
+                    reinterpret_cast<scenarioselect_callback>(intent->GetPointerExtra(INTENT_EXTRA_CALLBACK)), false);
             case WD_VEHICLE:
-                return window_ride_open_vehicle((rct_vehicle*)intent->GetPointerExtra(INTENT_EXTRA_VEHICLE));
+                return window_ride_open_vehicle(static_cast<Vehicle*>(intent->GetPointerExtra(INTENT_EXTRA_VEHICLE)));
             case WD_TRACK:
-                return window_ride_open_track((TileElement*)intent->GetPointerExtra(INTENT_EXTRA_TILE_ELEMENT));
+                return window_ride_open_track(static_cast<TileElement*>(intent->GetPointerExtra(INTENT_EXTRA_TILE_ELEMENT)));
             case INTENT_ACTION_NEW_RIDE_OF_TYPE:
             {
                 // Open ride list window
                 auto w = window_new_ride_open();
 
                 // Switch to right tab and scroll to ride location
-                ride_list_item rideItem;
-                rideItem.type = intent->GetUIntExtra(INTENT_EXTRA_RIDE_TYPE);
-                rideItem.entry_index = intent->GetUIntExtra(INTENT_EXTRA_RIDE_ENTRY_INDEX);
+                RideSelection rideItem;
+                rideItem.Type = intent->GetUIntExtra(INTENT_EXTRA_RIDE_TYPE);
+                rideItem.EntryIndex = intent->GetUIntExtra(INTENT_EXTRA_RIDE_ENTRY_INDEX);
                 window_new_ride_focus(rideItem);
 
                 return w;
@@ -296,6 +311,12 @@ public:
             case INTENT_ACTION_REFRESH_NEW_RIDES:
                 window_new_ride_init_vars();
                 break;
+
+            case INTENT_ACTION_REFRESH_CAMPAIGN_RIDE_LIST:
+            {
+                WindowCampaignRefreshRides();
+                break;
+            }
 
             case INTENT_ACTION_REFRESH_RIDE_LIST:
             {
@@ -360,11 +381,7 @@ public:
 
             case INTENT_ACTION_REFRESH_STAFF_LIST:
             {
-                auto w = window_find_by_class(WC_STAFF_LIST);
-                if (w != nullptr)
-                {
-                    w->no_list_items = 0;
-                }
+                WindowStaffListRefresh();
                 break;
             }
 
@@ -374,12 +391,12 @@ public:
 
             case INTENT_ACTION_INVALIDATE_VEHICLE_WINDOW:
             {
-                auto vehicle = static_cast<rct_vehicle*>(intent.GetPointerExtra(INTENT_EXTRA_VEHICLE));
+                auto vehicle = static_cast<Vehicle*>(intent.GetPointerExtra(INTENT_EXTRA_VEHICLE));
                 auto w = window_find_by_number(WC_RIDE, vehicle->ride);
                 if (w == nullptr)
                     return;
 
-                auto ride = get_ride(vehicle->ride);
+                auto ride = vehicle->GetRide();
                 auto viewVehicleIndex = w->ride.view - 1;
                 if (ride == nullptr || viewVehicleIndex < 0 || viewVehicleIndex >= ride->num_vehicles)
                     return;
@@ -411,6 +428,13 @@ public:
                 window_invalidate_by_class(WC_GUEST_LIST);
                 break;
 
+            case INTENT_ACTION_UPDATE_GUEST_COUNT:
+                gToolbarDirtyFlags |= BTM_TB_DIRTY_FLAG_PEEP_COUNT;
+                window_invalidate_by_class(WC_GUEST_LIST);
+                window_invalidate_by_class(WC_PARK_INFORMATION);
+                window_guest_list_refresh_list();
+                break;
+
             case INTENT_ACTION_UPDATE_PARK_RATING:
                 gToolbarDirtyFlags |= BTM_TB_DIRTY_FLAG_PARK_RATING;
                 window_invalidate_by_class(WC_PARK_INFORMATION);
@@ -439,6 +463,14 @@ public:
             case INTENT_ACTION_UPDATE_RESEARCH:
                 window_invalidate_by_class(WC_FINANCES);
                 window_invalidate_by_class(WC_RESEARCH);
+                break;
+
+            case INTENT_ACTION_TRACK_DESIGN_REMOVE_PROVISIONAL:
+                TrackPlaceClearProvisionalTemporarily();
+                break;
+
+            case INTENT_ACTION_TRACK_DESIGN_RESTORE_PROVISIONAL:
+                TrackPlaceRestoreProvisional();
                 break;
         }
     }
@@ -478,7 +510,7 @@ public:
         return std::string(buffer);
     }
 
-    void SetMainView(int32_t x, int32_t y, int32_t zoom, int32_t rotation) override
+    void SetMainView(const ScreenCoordsXY& viewPos, ZoomLevel zoom, int32_t rotation) override
     {
         auto mainWindow = window_get_main();
         if (mainWindow != nullptr)
@@ -487,18 +519,17 @@ public:
             auto zoomDifference = zoom - viewport->zoom;
 
             mainWindow->viewport_target_sprite = SPRITE_INDEX_NULL;
-            mainWindow->saved_view_x = x;
-            mainWindow->saved_view_y = y;
+            mainWindow->savedViewPos = viewPos;
             viewport->zoom = zoom;
             gCurrentRotation = rotation;
 
             if (zoomDifference != 0)
             {
-                viewport->view_width <<= zoomDifference;
-                viewport->view_height <<= zoomDifference;
+                viewport->view_width = viewport->view_width * zoomDifference;
+                viewport->view_height = viewport->view_height * zoomDifference;
             }
-            mainWindow->saved_view_x -= viewport->view_width >> 1;
-            mainWindow->saved_view_y -= viewport->view_height >> 1;
+            mainWindow->savedViewPos.x -= viewport->view_width >> 1;
+            mainWindow->savedViewPos.y -= viewport->view_height >> 1;
 
             // Make sure the viewport has correct coordinates set.
             viewport_update_position(mainWindow);

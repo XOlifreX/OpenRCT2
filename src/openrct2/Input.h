@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -46,18 +46,18 @@ enum MOUSE_STATE
     MOUSE_STATE_RIGHT_RELEASE
 };
 
-enum INPUT_STATE
+enum class InputState
 {
-    INPUT_STATE_RESET,
-    INPUT_STATE_NORMAL,
-    INPUT_STATE_WIDGET_PRESSED,
-    INPUT_STATE_POSITIONING_WINDOW,
-    INPUT_STATE_VIEWPORT_RIGHT,
-    INPUT_STATE_DROPDOWN_ACTIVE,
-    INPUT_STATE_VIEWPORT_LEFT,
-    INPUT_STATE_SCROLL_LEFT,
-    INPUT_STATE_RESIZING,
-    INPUT_STATE_SCROLL_RIGHT
+    Reset,
+    Normal,
+    WidgetPressed,
+    PositioningWindow,
+    ViewportRight,
+    DropdownActive,
+    ViewportLeft,
+    ScrollLeft,
+    Resizing,
+    ScrollRight
 };
 
 enum PLACE_OBJECT_MODIFIER
@@ -76,8 +76,7 @@ struct widget_ref
 
 extern uint8_t gInputPlaceObjectModifier;
 
-extern int32_t gInputDragLastX;
-extern int32_t gInputDragLastY;
+extern ScreenCoordsXY gInputDragLast;
 
 extern widget_ref gHoverWidget;
 extern widget_ref gPressedWidget;
@@ -91,11 +90,11 @@ extern TOOL_IDX gCurrentToolId;
 extern widget_ref gCurrentToolWidget;
 
 // TODO: Move to openrct2-ui and make static again
-extern INPUT_STATE _inputState;
+extern InputState _inputState;
 extern uint8_t _inputFlags;
 extern uint16_t _tooltipNotShownTicks;
 
-void input_window_position_begin(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
+void input_window_position_begin(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords);
 
 void title_handle_keyboard_input();
 void game_handle_input();
@@ -103,7 +102,7 @@ void game_handle_keyboard_input();
 void game_handle_edge_scroll();
 int32_t get_next_key();
 
-void store_mouse_input(int32_t state, int32_t x, int32_t y);
+void store_mouse_input(int32_t state, const ScreenCoordsXY& screenCoords);
 
 void input_set_flag(INPUT_FLAGS flag, bool on);
 bool input_test_flag(INPUT_FLAGS flag);
@@ -111,13 +110,13 @@ void input_reset_flags();
 
 bool input_test_place_object_modifier(PLACE_OBJECT_MODIFIER modifier);
 
-void input_set_state(INPUT_STATE state);
-INPUT_STATE input_get_state();
+void input_set_state(InputState state);
+InputState input_get_state();
 
 void reset_tooltip_not_shown();
 
 void input_reset_place_obj_modifier();
 
-void input_scroll_viewport(int32_t scrollX, int32_t scrollY);
+void input_scroll_viewport(const ScreenCoordsXY& screenCoords);
 
 #endif

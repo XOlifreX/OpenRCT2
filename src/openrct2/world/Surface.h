@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -107,9 +107,6 @@ enum
 #define TILE_ELEMENT_SURFACE_RAISED_CORNERS_MASK 0x0F // in TileElement.properties.surface.slope
 #define TILE_ELEMENT_SURFACE_SLOPE_MASK                                                                                        \
     (TILE_ELEMENT_SURFACE_DIAGONAL_FLAG | TILE_ELEMENT_SURFACE_RAISED_CORNERS_MASK) // in TileElement.properties.surface.slope
-#define TILE_ELEMENT_SURFACE_EDGE_STYLE_MASK 0xE0                                   // in TileElement.properties.surface.slope
-#define TILE_ELEMENT_SURFACE_WATER_HEIGHT_MASK 0x1F                                 // in TileElement.properties.surface.terrain
-#define TILE_ELEMENT_SURFACE_TERRAIN_MASK 0xE0                                      // in TileElement.properties.surface.terrain
 
 #define TILE_ELEMENT_SURFACE_OWNERSHIP_MASK 0xF0
 #define TILE_ELEMENT_SURFACE_PARK_FENCE_MASK 0x0F

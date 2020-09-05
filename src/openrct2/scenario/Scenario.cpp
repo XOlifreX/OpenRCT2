@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -82,7 +82,6 @@ money32 gScenarioCompanyValueRecord;
 
 char gScenarioFileName[MAX_PATH];
 
-static int32_t scenario_create_ducks();
 static void scenario_objective_check();
 
 using namespace OpenRCT2;
@@ -100,7 +99,7 @@ void scenario_begin()
         gParkFlags |= PARK_FLAGS_NO_MONEY;
     research_reset_current_item();
     scenery_set_default_placement_configuration();
-    news_item_init_queue();
+    News::InitQueue();
     if (gScenarioObjectiveType != OBJECTIVE_NONE && !gLoadKeepWindowsOpen)
         context_open_window_view(WV_PARK_OBJECTIVE);
 
@@ -178,6 +177,7 @@ void scenario_begin()
 
 static void scenario_end()
 {
+    game_reset_speed();
     window_close_by_class(WC_DROPDOWN);
     window_close_all_except_flags(WF_STICK_TO_BACK | WF_STICK_TO_FRONT);
     context_open_window_view(WV_PARK_OBJECTIVE);
@@ -189,7 +189,7 @@ static void scenario_end()
  */
 void scenario_failure()
 {
-    gScenarioCompletedCompanyValue = 0x80000001;
+    gScenarioCompletedCompanyValue = COMPANY_VALUE_ON_FAILED_OBJECTIVE;
     scenario_end();
 }
 
@@ -246,7 +246,7 @@ static void scenario_entrance_fee_too_high_check()
             uint32_t packed_xy = (y << 16) | x;
             if (gConfigNotifications.park_warnings)
             {
-                news_item_add_to_queue(NEWS_ITEM_BLANK, STR_ENTRANCE_FEE_TOO_HI, packed_xy);
+                News::AddItemToQueue(News::ItemType::Blank, STR_ENTRANCE_FEE_TOO_HI, packed_xy);
             }
         }
     }
@@ -326,7 +326,7 @@ static void scenario_week_update()
     ride_check_all_reachable();
     ride_update_favourited_stat();
 
-    auto water_type = (rct_water_type*)object_entry_get_chunk(OBJECT_TYPE_WATER, 0);
+    auto water_type = static_cast<rct_water_type*>(object_entry_get_chunk(OBJECT_TYPE_WATER, 0));
 
     if (month <= MONTH_APRIL && water_type != nullptr && water_type->flags & WATER_FLAGS_ALLOW_DUCKS)
     {
@@ -359,7 +359,7 @@ static void scenario_update_daynight_cycle()
 
     if (gScreenFlags == SCREEN_FLAGS_PLAYING && gConfigGeneral.day_night_cycle)
     {
-        float monthFraction = gDateMonthTicks / (float)0x10000;
+        float monthFraction = gDateMonthTicks / static_cast<float>(0x10000);
         if (monthFraction < (1 / 8.0f))
         {
             gDayNightCycle = 0.0f;
@@ -420,24 +420,25 @@ void scenario_update()
  *
  *  rct2: 0x006744A9
  */
-static int32_t scenario_create_ducks()
+bool scenario_create_ducks()
 {
+    // Check NxN area around centre tile defined by SquareSize
+    constexpr int32_t SquareSize = 7;
+    constexpr int32_t SquareCentre = SquareSize / 2;
+    constexpr int32_t SquareRadiusSize = SquareCentre * 32;
+
     CoordsXY centrePos;
-    centrePos.x = 64 + (scenario_rand_max(MAXIMUM_MAP_SIZE_PRACTICAL) * 32);
-    centrePos.y = 64 + (scenario_rand_max(MAXIMUM_MAP_SIZE_PRACTICAL) * 32);
+    centrePos.x = SquareRadiusSize + (scenario_rand_max(MAXIMUM_MAP_SIZE_TECHNICAL - SquareCentre) * 32);
+    centrePos.y = SquareRadiusSize + (scenario_rand_max(MAXIMUM_MAP_SIZE_TECHNICAL - SquareCentre) * 32);
 
     Guard::Assert(map_is_location_valid(centrePos));
 
     if (!map_is_location_in_park(centrePos))
-        return 0;
+        return false;
 
     int32_t centreWaterZ = (tile_element_water_height(centrePos));
     if (centreWaterZ == 0)
-        return 0;
-
-    // Check NxN area around centre tile defined by SquareSize
-    constexpr int32_t SquareSize = 7;
-    constexpr int32_t SquareCentre = SquareSize / 2;
+        return false;
 
     CoordsXY innerPos{ centrePos.x - (32 * SquareCentre), centrePos.y - (32 * SquareCentre) };
     int32_t waterTiles = 0;
@@ -463,25 +464,26 @@ static int32_t scenario_create_ducks()
 
     // Must be at least 25 water tiles of the same height in 7x7 area
     if (waterTiles < 25)
-        return 0;
+        return false;
 
     // Set x, y to the centre of the tile
     centrePos.x += 16;
     centrePos.y += 16;
 
-    int32_t duckCount = (scenario_rand() & 3) + 2;
-    for (int32_t i = 0; i < duckCount; i++)
+    uint32_t duckCount = (scenario_rand() % 4) + 2;
+    for (uint32_t i = 0; i < duckCount; i++)
     {
-        int32_t r = scenario_rand();
-        innerPos.x = (r >> 16) & 0x7F;
-        innerPos.y = (r & 0xFFFF) & 0x7F;
+        uint32_t r = scenario_rand();
+        innerPos.x = (r >> 16) % SquareRadiusSize;
+        innerPos.y = (r & 0xFFFF) % SquareRadiusSize;
 
-        CoordsXY targetPos{ centrePos.x + innerPos.x - 64, centrePos.y + innerPos.y - 64 };
+        CoordsXY targetPos{ centrePos.x + innerPos.x - SquareRadiusSize, centrePos.y + innerPos.y - SquareRadiusSize };
+
         Guard::Assert(map_is_location_valid(targetPos));
         create_duck(targetPos);
     }
 
-    return 1;
+    return true;
 }
 
 const random_engine_t::state_type& scenario_rand_state()
@@ -512,7 +514,7 @@ uint32_t scenario_rand_max(uint32_t max)
         return 0;
     if ((max & (max - 1)) == 0)
         return scenario_rand() & (max - 1);
-    uint32_t rand, cap = ~((uint32_t)0) - (~((uint32_t)0) % max) - 1;
+    uint32_t rand, cap = ~(static_cast<uint32_t>(0)) - (~(static_cast<uint32_t>(0)) % max) - 1;
     do
     {
         rand = scenario_rand();
@@ -650,13 +652,13 @@ void scenario_fix_ghosts(rct_s6_data* s6)
             {
                 if (originalElement->IsGhost())
                 {
-                    BannerIndex bannerIndex = originalElement->GetBannerIndex();
-                    if (bannerIndex != BANNER_INDEX_NULL)
+                    uint8_t bannerIndex = originalElement->GetBannerIndex();
+                    if (bannerIndex != RCT12_BANNER_INDEX_NULL)
                     {
                         auto banner = &s6->banners[bannerIndex];
-                        if (banner->type != BANNER_NULL)
+                        if (banner->type != RCT12_OBJECT_ENTRY_INDEX_NULL)
                         {
-                            banner->type = BANNER_NULL;
+                            banner->type = RCT12_OBJECT_ENTRY_INDEX_NULL;
                             if (is_user_string_id(banner->string_idx))
                                 s6->custom_strings[(banner->string_idx % RCT12_MAX_USER_STRINGS)][0] = 0;
                         }
@@ -713,13 +715,11 @@ static void scenario_objective_check_guests_by()
 {
     uint8_t objectiveYear = gScenarioObjectiveYear;
     int16_t parkRating = gParkRating;
-    int16_t guestsInPark = gNumGuestsInPark;
-    int16_t objectiveGuests = gScenarioObjectiveNumGuests;
-    int16_t currentMonthYear = gDateMonthsElapsed;
+    int32_t currentMonthYear = gDateMonthsElapsed;
 
     if (currentMonthYear == MONTH_COUNT * objectiveYear || gConfigGeneral.allow_early_completion)
     {
-        if (parkRating >= 600 && guestsInPark >= objectiveGuests)
+        if (parkRating >= 600 && gNumGuestsInPark >= gScenarioObjectiveNumGuests)
         {
             scenario_success();
         }
@@ -733,7 +733,7 @@ static void scenario_objective_check_guests_by()
 static void scenario_objective_check_park_value_by()
 {
     uint8_t objectiveYear = gScenarioObjectiveYear;
-    int16_t currentMonthYear = gDateMonthsElapsed;
+    int32_t currentMonthYear = gDateMonthsElapsed;
     money32 objectiveParkValue = gScenarioObjectiveCurrency;
     money32 parkValue = gParkValue;
 
@@ -793,39 +793,39 @@ static void scenario_objective_check_guests_and_rating()
         {
             if (gConfigNotifications.park_rating_warnings)
             {
-                news_item_add_to_queue(NEWS_ITEM_GRAPH, STR_PARK_RATING_WARNING_4_WEEKS_REMAINING, 0);
+                News::AddItemToQueue(News::ItemType::Graph, STR_PARK_RATING_WARNING_4_WEEKS_REMAINING, 0);
             }
         }
         else if (gScenarioParkRatingWarningDays == 8)
         {
             if (gConfigNotifications.park_rating_warnings)
             {
-                news_item_add_to_queue(NEWS_ITEM_GRAPH, STR_PARK_RATING_WARNING_3_WEEKS_REMAINING, 0);
+                News::AddItemToQueue(News::ItemType::Graph, STR_PARK_RATING_WARNING_3_WEEKS_REMAINING, 0);
             }
         }
         else if (gScenarioParkRatingWarningDays == 15)
         {
             if (gConfigNotifications.park_rating_warnings)
             {
-                news_item_add_to_queue(NEWS_ITEM_GRAPH, STR_PARK_RATING_WARNING_2_WEEKS_REMAINING, 0);
+                News::AddItemToQueue(News::ItemType::Graph, STR_PARK_RATING_WARNING_2_WEEKS_REMAINING, 0);
             }
         }
         else if (gScenarioParkRatingWarningDays == 22)
         {
             if (gConfigNotifications.park_rating_warnings)
             {
-                news_item_add_to_queue(NEWS_ITEM_GRAPH, STR_PARK_RATING_WARNING_1_WEEK_REMAINING, 0);
+                News::AddItemToQueue(News::ItemType::Graph, STR_PARK_RATING_WARNING_1_WEEK_REMAINING, 0);
             }
         }
         else if (gScenarioParkRatingWarningDays == 29)
         {
-            news_item_add_to_queue(NEWS_ITEM_GRAPH, STR_PARK_HAS_BEEN_CLOSED_DOWN, 0);
+            News::AddItemToQueue(News::ItemType::Graph, STR_PARK_HAS_BEEN_CLOSED_DOWN, 0);
             gParkFlags &= ~PARK_FLAGS_PARK_OPEN;
             scenario_failure();
             gGuestInitialHappiness = 50;
         }
     }
-    else if (gScenarioCompletedCompanyValue != (money32)0x80000001)
+    else if (gScenarioCompletedCompanyValue != COMPANY_VALUE_ON_FAILED_OBJECTIVE)
     {
         gScenarioParkRatingWarningDays = 0;
     }
@@ -837,7 +837,7 @@ static void scenario_objective_check_guests_and_rating()
 
 static void scenario_objective_check_monthly_ride_income()
 {
-    money32 lastMonthRideIncome = gExpenditureTable[1][RCT_EXPENDITURE_TYPE_PARK_RIDE_TICKETS];
+    money32 lastMonthRideIncome = gExpenditureTable[1][static_cast<int32_t>(ExpenditureType::ParkRideTickets)];
     if (lastMonthRideIncome >= gScenarioObjectiveCurrency)
     {
         scenario_success();
@@ -919,9 +919,10 @@ static void scenario_objective_check_replay_loan_and_park_value()
 static void scenario_objective_check_monthly_food_income()
 {
     money32* lastMonthExpenditure = gExpenditureTable[1];
-    int32_t lastMonthProfit = lastMonthExpenditure[RCT_EXPENDITURE_TYPE_SHOP_SHOP_SALES]
-        + lastMonthExpenditure[RCT_EXPENDITURE_TYPE_SHOP_STOCK] + lastMonthExpenditure[RCT_EXPENDITURE_TYPE_FOODDRINK_SALES]
-        + lastMonthExpenditure[RCT_EXPENDITURE_TYPE_FOODDRINK_STOCK];
+    int32_t lastMonthProfit = lastMonthExpenditure[static_cast<int32_t>(ExpenditureType::ShopSales)]
+        + lastMonthExpenditure[static_cast<int32_t>(ExpenditureType::ShopStock)]
+        + lastMonthExpenditure[static_cast<int32_t>(ExpenditureType::FoodDrinkSales)]
+        + lastMonthExpenditure[static_cast<int32_t>(ExpenditureType::FoodDrinkStock)];
 
     if (lastMonthProfit >= gScenarioObjectiveCurrency)
     {
@@ -970,4 +971,18 @@ static void scenario_objective_check()
             scenario_objective_check_monthly_food_income();
             break;
     }
+}
+
+bool ObjectiveNeedsMoney(const uint8_t objective)
+{
+    switch (objective)
+    {
+        case OBJECTIVE_PARK_VALUE_BY:
+        case OBJECTIVE_MONTHLY_RIDE_INCOME:
+        case OBJECTIVE_REPLAY_LOAN_AND_PARK_VALUE:
+        case OBJECTIVE_MONTHLY_FOOD_INCOME:
+            return true;
+    }
+
+    return false;
 }

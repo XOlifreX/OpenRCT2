@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -20,6 +20,10 @@
 #include <openrct2/localisation/Localisation.h>
 #include <openrct2/world/Park.h>
 
+static constexpr const rct_string_id WINDOW_TITLE = STR_LAND_RIGHTS;
+static constexpr const int32_t WH = 94;
+static constexpr const int32_t WW = 98;
+
 // clang-format off
 enum WINDOW_WATER_WIDGET_IDX {
     WIDX_BACKGROUND,
@@ -33,14 +37,12 @@ enum WINDOW_WATER_WIDGET_IDX {
 };
 
 static rct_widget window_land_rights_widgets[] = {
-    { WWT_FRAME,    0,  0,  97, 0,  93, 0xFFFFFFFF,                                 STR_NONE },                             // panel / background
-    { WWT_CAPTION,  0,  1,  96, 1,  14, STR_LAND_RIGHTS,                            STR_WINDOW_TITLE_TIP },                 // title bar
-    { WWT_CLOSEBOX, 0,  85, 95, 2,  13, STR_CLOSE_X,                                STR_CLOSE_WINDOW_TIP },                 // close x button
-    { WWT_IMGBTN,   0,  27, 70, 17, 48, SPR_LAND_TOOL_SIZE_0,                       STR_NONE },                             // preview box
-    { WWT_TRNBTN,   2,  28, 43, 18, 33, IMAGE_TYPE_REMAP | SPR_LAND_TOOL_DECREASE,        STR_ADJUST_SMALLER_LAND_RIGHTS_TIP },   // decrement size
-    { WWT_TRNBTN,   2,  54, 69, 32, 47, IMAGE_TYPE_REMAP | SPR_LAND_TOOL_INCREASE,        STR_ADJUST_LARGER_LAND_RIGHTS_TIP },    // increment size
-    { WWT_FLATBTN,  2,  22, 45, 53, 76, IMAGE_TYPE_REMAP | SPR_BUY_LAND_RIGHTS,           STR_BUY_LAND_RIGHTS_TIP },              // land rights
-    { WWT_FLATBTN,  2,  52, 75, 53, 76, IMAGE_TYPE_REMAP | SPR_BUY_CONSTRUCTION_RIGHTS,   STR_BUY_CONSTRUCTION_RIGHTS_TIP },      // construction rights
+    WINDOW_SHIM(WINDOW_TITLE, WW, WH),
+    MakeWidget     ({27, 17}, {44, 32}, WWT_IMGBTN,  WindowColour::Primary , SPR_LAND_TOOL_SIZE_0                                           ), // preview box
+    MakeRemapWidget({28, 18}, {16, 16}, WWT_TRNBTN,  WindowColour::Tertiary, SPR_LAND_TOOL_DECREASE,      STR_ADJUST_SMALLER_LAND_RIGHTS_TIP), // decrement size
+    MakeRemapWidget({54, 32}, {16, 16}, WWT_TRNBTN,  WindowColour::Tertiary, SPR_LAND_TOOL_INCREASE,      STR_ADJUST_LARGER_LAND_RIGHTS_TIP ), // increment size
+    MakeRemapWidget({22, 53}, {24, 24}, WWT_FLATBTN, WindowColour::Tertiary, SPR_BUY_LAND_RIGHTS,         STR_BUY_LAND_RIGHTS_TIP           ), // land rights
+    MakeRemapWidget({52, 53}, {24, 24}, WWT_FLATBTN, WindowColour::Tertiary, SPR_BUY_CONSTRUCTION_RIGHTS, STR_BUY_CONSTRUCTION_RIGHTS_TIP   ), // construction rights
     { WIDGETS_END },
 };
 
@@ -52,9 +54,9 @@ static void window_land_rights_invalidate(rct_window *w);
 static void window_land_rights_paint(rct_window *w, rct_drawpixelinfo *dpi);
 static void window_land_rights_textinput(rct_window *w, rct_widgetindex widgetIndex, char *text);
 static void window_land_rights_inputsize(rct_window *w);
-static void window_land_rights_toolupdate(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
-static void window_land_rights_tooldown(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
-static void window_land_rights_tooldrag(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y);
+static void window_land_rights_toolupdate(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords);
+static void window_land_rights_tooldown(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords);
+static void window_land_rights_tooldrag(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords);
 static void window_land_rights_toolabort(rct_window *w, rct_widgetindex widgetIndex);
 static bool land_rights_tool_is_active();
 
@@ -91,8 +93,8 @@ static rct_window_event_list window_land_rights_events = {
 };
 // clang-format on
 
-#define LAND_RIGHTS_MODE_BUY_CONSTRUCTION_RIGHTS 0
-#define LAND_RIGHTS_MODE_BUY_LAND 1
+constexpr uint8_t LAND_RIGHTS_MODE_BUY_CONSTRUCTION_RIGHTS = 0;
+constexpr uint8_t LAND_RIGHTS_MODE_BUY_LAND = 1;
 
 static uint8_t _landRightsMode;
 static money32 _landRightsCost;
@@ -106,7 +108,7 @@ rct_window* window_land_rights_open()
     if (window != nullptr)
         return window;
 
-    window = window_create(context_get_width() - 98, 29, 98, 94, &window_land_rights_events, WC_LAND_RIGHTS, 0);
+    window = window_create(ScreenCoordsXY(context_get_width() - 98, 29), 98, 94, &window_land_rights_events, WC_LAND_RIGHTS, 0);
     window->widgets = window_land_rights_widgets;
     window->enabled_widgets = (1 << WIDX_CLOSE) | (1 << WIDX_DECREMENT) | (1 << WIDX_INCREMENT) | (1 << WIDX_PREVIEW)
         | (1 << WIDX_BUY_LAND_RIGHTS) | (1 << WIDX_BUY_CONSTRUCTION_RIGHTS);
@@ -269,36 +271,34 @@ static void window_land_rights_invalidate(rct_window* w)
 
 static void window_land_rights_paint(rct_window* w, rct_drawpixelinfo* dpi)
 {
-    int32_t x, y;
-
-    x = w->x + (window_land_rights_widgets[WIDX_PREVIEW].left + window_land_rights_widgets[WIDX_PREVIEW].right) / 2;
-    y = w->y + (window_land_rights_widgets[WIDX_PREVIEW].top + window_land_rights_widgets[WIDX_PREVIEW].bottom) / 2;
+    auto screenCoords = ScreenCoordsXY{ w->windowPos.x + window_land_rights_widgets[WIDX_PREVIEW].midX(),
+                                        w->windowPos.y + window_land_rights_widgets[WIDX_PREVIEW].midY() };
 
     window_draw_widgets(w, dpi);
     // Draw number for tool sizes bigger than 7
     if (gLandToolSize > MAX_TOOL_SIZE_WITH_SPRITE)
     {
-        gfx_draw_string_centred(dpi, STR_LAND_TOOL_SIZE_VALUE, x, y - 2, COLOUR_BLACK, &gLandToolSize);
+        gfx_draw_string_centred(
+            dpi, STR_LAND_TOOL_SIZE_VALUE, screenCoords - ScreenCoordsXY{ 0, 2 }, COLOUR_BLACK, &gLandToolSize);
     }
 
     // Draw cost amount
     if (_landRightsCost != MONEY32_UNDEFINED && _landRightsCost != 0 && !(gParkFlags & PARK_FLAGS_NO_MONEY))
     {
-        x = (window_land_rights_widgets[WIDX_PREVIEW].left + window_land_rights_widgets[WIDX_PREVIEW].right) / 2 + w->x;
-        y = window_land_rights_widgets[WIDX_PREVIEW].bottom + w->y + 32;
-        gfx_draw_string_centred(dpi, STR_COST_AMOUNT, x, y, COLOUR_BLACK, &_landRightsCost);
+        screenCoords = { window_land_rights_widgets[WIDX_PREVIEW].midX() + w->windowPos.x,
+                         window_land_rights_widgets[WIDX_PREVIEW].bottom + w->windowPos.y + 32 };
+        gfx_draw_string_centred(dpi, STR_COST_AMOUNT, screenCoords, COLOUR_BLACK, &_landRightsCost);
     }
 }
 
-static void window_land_rights_tool_update_land_rights(int16_t x, int16_t y)
+static void window_land_rights_tool_update_land_rights(const ScreenCoordsXY& screenCoords)
 {
     map_invalidate_selection_rect();
     gMapSelectFlags &= ~MAP_SELECT_FLAG_ENABLE;
 
-    LocationXY16 mapTile = {};
-    screen_get_map_xy(x, y, &mapTile.x, &mapTile.y, nullptr);
+    auto mapTile = screen_get_map_xy(screenCoords, nullptr);
 
-    if (mapTile.x == LOCATION_NULL)
+    if (!mapTile)
     {
         if (_landRightsCost != MONEY32_UNDEFINED)
         {
@@ -329,35 +329,34 @@ static void window_land_rights_tool_update_land_rights(int16_t x, int16_t y)
     int16_t tool_length = (tool_size - 1) * 32;
 
     // Move to tool bottom left
-    mapTile.x -= (tool_size - 1) * 16;
-    mapTile.y -= (tool_size - 1) * 16;
-    mapTile.x &= 0xFFE0;
-    mapTile.y &= 0xFFE0;
+    mapTile->x -= (tool_size - 1) * 16;
+    mapTile->y -= (tool_size - 1) * 16;
+    mapTile = mapTile->ToTileStart();
 
-    if (gMapSelectPositionA.x != mapTile.x)
+    if (gMapSelectPositionA.x != mapTile->x)
     {
-        gMapSelectPositionA.x = mapTile.x;
+        gMapSelectPositionA.x = mapTile->x;
         state_changed++;
     }
 
-    if (gMapSelectPositionA.y != mapTile.y)
+    if (gMapSelectPositionA.y != mapTile->y)
     {
-        gMapSelectPositionA.y = mapTile.y;
+        gMapSelectPositionA.y = mapTile->y;
         state_changed++;
     }
 
-    mapTile.x += tool_length;
-    mapTile.y += tool_length;
+    mapTile->x += tool_length;
+    mapTile->y += tool_length;
 
-    if (gMapSelectPositionB.x != mapTile.x)
+    if (gMapSelectPositionB.x != mapTile->x)
     {
-        gMapSelectPositionB.x = mapTile.x;
+        gMapSelectPositionB.x = mapTile->x;
         state_changed++;
     }
 
-    if (gMapSelectPositionB.y != mapTile.y)
+    if (gMapSelectPositionB.y != mapTile->y)
     {
-        gMapSelectPositionB.y = mapTile.y;
+        gMapSelectPositionB.y = mapTile->y;
         state_changed++;
     }
 
@@ -395,20 +394,20 @@ static void window_land_rights_toolabort(rct_window* w, rct_widgetindex widgetIn
  *
  *  rct2: 0x006681D1
  */
-static void window_land_rights_toolupdate(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_land_rights_toolupdate(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords)
 {
-    window_land_rights_tool_update_land_rights(x, y);
+    window_land_rights_tool_update_land_rights(screenCoords);
 }
 
 /**
  *
  *  rct2: 0x006681E6
  */
-static void window_land_rights_tooldown(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_land_rights_tooldown(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords)
 {
     if (_landRightsMode == LAND_RIGHTS_MODE_BUY_LAND)
     {
-        if (x != LOCATION_NULL)
+        if (screenCoords.x != LOCATION_NULL)
         {
             auto landBuyRightsAction = LandBuyRightsAction(
                 { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
@@ -418,7 +417,7 @@ static void window_land_rights_tooldown(rct_window* w, rct_widgetindex widgetInd
     }
     else
     {
-        if (x != LOCATION_NULL)
+        if (screenCoords.x != LOCATION_NULL)
         {
             auto landBuyRightsAction = LandBuyRightsAction(
                 { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
@@ -432,11 +431,11 @@ static void window_land_rights_tooldown(rct_window* w, rct_widgetindex widgetInd
  *
  *  rct2: 0x006681FB
  */
-static void window_land_rights_tooldrag(rct_window* w, rct_widgetindex widgetIndex, int32_t x, int32_t y)
+static void window_land_rights_tooldrag(rct_window* w, rct_widgetindex widgetIndex, const ScreenCoordsXY& screenCoords)
 {
     if (_landRightsMode == LAND_RIGHTS_MODE_BUY_LAND)
     {
-        if (x != LOCATION_NULL)
+        if (screenCoords.x != LOCATION_NULL)
         {
             auto landBuyRightsAction = LandBuyRightsAction(
                 { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },
@@ -446,7 +445,7 @@ static void window_land_rights_tooldrag(rct_window* w, rct_widgetindex widgetInd
     }
     else
     {
-        if (x != LOCATION_NULL)
+        if (screenCoords.x != LOCATION_NULL)
         {
             auto landBuyRightsAction = LandBuyRightsAction(
                 { gMapSelectPositionA.x, gMapSelectPositionA.y, gMapSelectPositionB.x, gMapSelectPositionB.y },

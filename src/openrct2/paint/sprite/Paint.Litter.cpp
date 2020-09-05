@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -65,12 +65,12 @@ static constexpr const litter_sprite litter_sprites[] = {
  * Litter Paint Setup
  *  rct2: 0x006736FC
  */
-void litter_paint(paint_session* session, const rct_litter* litter, int32_t imageDirection)
+void litter_paint(paint_session* session, const Litter* litter, int32_t imageDirection)
 {
     rct_drawpixelinfo* dpi;
 
     dpi = &session->DPI;
-    if (dpi->zoom_level != 0)
+    if (dpi->zoom_level > 0)
         return; // If zoomed at all no litter drawn
 
     // litter has no sprite direction so remove that

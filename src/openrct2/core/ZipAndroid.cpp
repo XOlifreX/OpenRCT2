@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -27,7 +27,7 @@ public:
         // retrieve the JNI environment.
         JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
 
-        jclass jniClass = platform_android_find_class(env, "website/openrct2/ZipArchive");
+        jclass jniClass = platform_android_find_class(env, "io/openrct2/ZipArchive");
         jmethodID constructor = env->GetMethodID(jniClass, "<init>", "(Ljava/lang/String;)V");
 
         jstring jniPath = env->NewStringUTF(path.data());
@@ -59,7 +59,7 @@ public:
         jclass zipClass = env->GetObjectClass(_zip);
         jmethodID fileCountMethod = env->GetMethodID(zipClass, "getNumFiles", "()I");
 
-        return (size_t)env->CallIntMethod(_zip, fileCountMethod);
+        return static_cast<size_t>(env->CallIntMethod(_zip, fileCountMethod));
     }
 
     std::string GetFileName(size_t index) const override
@@ -151,10 +151,10 @@ namespace Zip
 } // namespace Zip
 
 extern "C" {
-JNIEXPORT jlong JNICALL Java_website_openrct2_ZipArchive_allocBytes(JNIEnv* env, jclass, jbyteArray input, jint numBytes);
+JNIEXPORT jlong JNICALL Java_io_openrct2_ZipArchive_allocBytes(JNIEnv* env, jclass, jbyteArray input, jint numBytes);
 }
 
-JNIEXPORT jlong JNICALL Java_website_openrct2_ZipArchive_allocBytes(JNIEnv* env, jclass, jbyteArray input, jint numBytes)
+JNIEXPORT jlong JNICALL Java_io_openrct2_ZipArchive_allocBytes(JNIEnv* env, jclass, jbyteArray input, jint numBytes)
 {
     jbyte* bufferPtr = env->GetByteArrayElements(input, nullptr);
 
@@ -163,7 +163,7 @@ JNIEXPORT jlong JNICALL Java_website_openrct2_ZipArchive_allocBytes(JNIEnv* env,
 
     env->ReleaseByteArrayElements(input, bufferPtr, 0);
 
-    return (uintptr_t)data;
+    return reinterpret_cast<uintptr_t>(data);
 }
 
 #endif // __ANDROID__

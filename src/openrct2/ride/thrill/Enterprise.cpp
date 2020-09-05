@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -23,7 +23,7 @@ static void paint_enterprise_structure(
 
     const TileElement* savedTileElement = static_cast<const TileElement*>(session->CurrentlyDrawnItem);
     rct_ride_entry* rideEntry = get_ride_entry(ride->subtype);
-    rct_vehicle* vehicle = nullptr;
+    Vehicle* vehicle = nullptr;
 
     if (rideEntry == nullptr)
     {
@@ -35,7 +35,7 @@ static void paint_enterprise_structure(
     if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && ride->vehicles[0] != SPRITE_INDEX_NULL)
     {
         session->InteractionType = VIEWPORT_INTERACTION_ITEM_SPRITE;
-        vehicle = GET_VEHICLE(ride->vehicles[0]);
+        vehicle = GetEntity<Vehicle>(ride->vehicles[0]);
         session->CurrentlyDrawnItem = vehicle;
     }
 
@@ -88,14 +88,13 @@ static void paint_enterprise(
     trackSequence = track_map_4x4[direction][trackSequence];
 
     int32_t edges = edges_4x4[trackSequence];
-    LocationXY16 position = session->MapPosition;
 
     wooden_a_supports_paint_setup(session, direction & 1, 0, height, session->TrackColours[SCHEME_MISC], nullptr);
 
     track_paint_util_paint_floor(session, edges, session->TrackColours[SCHEME_TRACK], height, floorSpritesCork);
 
     track_paint_util_paint_fences(
-        session, edges, position, tileElement, ride, session->TrackColours[SCHEME_TRACK], height, fenceSpritesRope,
+        session, edges, session->MapPosition, tileElement, ride, session->TrackColours[SCHEME_TRACK], height, fenceSpritesRope,
         session->CurrentRotation);
 
     switch (trackSequence)

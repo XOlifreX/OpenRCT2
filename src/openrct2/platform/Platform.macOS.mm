@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -11,6 +11,7 @@
 
 #    include "../OpenRCT2.h"
 #    include "../core/Path.hpp"
+#    include "../core/String.hpp"
 #    include "Platform2.h"
 
 // undefine `interface` and `abstract`, because it's causing conflicts with Objective-C's keywords
@@ -41,14 +42,10 @@ namespace Platform
         }
     }
 
-    std::string GetDocsPath()
-    {
-        return std::string();
-    }
-
     static std::string GetBundlePath()
     {
-        @autoreleasepool {
+        @autoreleasepool
+        {
             NSBundle* bundle = [NSBundle mainBundle];
             if (bundle)
             {
@@ -62,9 +59,14 @@ namespace Platform
         }
     }
 
+    std::string GetDocsPath()
+    {
+        return GetBundlePath();
+    }
+
     std::string GetInstallPath()
     {
-        auto path = std::string(gCustomOpenrctDataPath);
+        auto path = std::string(gCustomOpenRCT2DataPath);
         if (!path.empty())
         {
             path = Path::GetAbsolute(path);
@@ -101,6 +103,34 @@ namespace Platform
             return std::string();
         }
     }
+
+    utf8* StrDecompToPrecomp(utf8* input)
+    {
+        @autoreleasepool
+        {
+            if (input == NULL)
+            {
+                return 0;
+            }
+
+            NSString* inputDecomp = [NSString stringWithUTF8String:input];
+            return strdup([inputDecomp.precomposedStringWithCanonicalMapping cStringUsingEncoding:NSUTF8StringEncoding]);
+        }
+    }
+
+    bool HandleSpecialCommandLineArgument(const char* argument)
+    {
+        if (String::Equals(argument, "-NSDocumentRevisionsDebugMode"))
+        {
+            return true;
+        }
+        if (String::StartsWith(argument, "-psn_"))
+        {
+            return true;
+        }
+        return false;
+    }
+
 }
 
 #endif

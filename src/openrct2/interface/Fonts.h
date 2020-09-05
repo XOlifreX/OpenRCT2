@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -19,6 +19,7 @@ namespace OpenRCT2::Localisation
 
 #ifndef NO_TTF
 extern TTFFontSetDescriptor TTFFontMSGothic;
+extern TTFFontSetDescriptor TTFFontNotoSansMono;
 extern TTFFontSetDescriptor TTFFontHiragano;
 extern TTFFontSetDescriptor TTFFontMingLiu;
 extern TTFFontSetDescriptor TTFFontHeiti;

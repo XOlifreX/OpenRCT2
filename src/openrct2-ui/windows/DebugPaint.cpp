@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -32,16 +32,16 @@ enum WINDOW_DEBUG_PAINT_WIDGET_IDX
     WIDX_TOGGLE_SHOW_DIRTY_VISUALS,
 };
 
-#define WINDOW_WIDTH    (200)
-#define WINDOW_HEIGHT   (8 + 15 + 15 + 15 + 15 + 11 + 8)
+constexpr int32_t WINDOW_WIDTH = 200;
+constexpr int32_t WINDOW_HEIGHT = 8 + 15 + 15 + 15 + 15 + 11 + 8;
 
 static rct_widget window_debug_paint_widgets[] = {
-    { WWT_FRAME,    0,  0,  WINDOW_WIDTH - 1,   0,              WINDOW_HEIGHT - 1,  STR_NONE,                               STR_NONE },
-    { WWT_CHECKBOX, 1,  8,  WINDOW_WIDTH - 8,   8 + 15 * 0,     8 + 15 * 0 + 11,    STR_DEBUG_PAINT_SHOW_WIDE_PATHS,        STR_NONE },
-    { WWT_CHECKBOX, 1,  8,  WINDOW_WIDTH - 8,   8 + 15 * 1,     8 + 15 * 1 + 11,    STR_DEBUG_PAINT_SHOW_BLOCKED_TILES,     STR_NONE },
-    { WWT_CHECKBOX, 1,  8,  WINDOW_WIDTH - 8,   8 + 15 * 2,     8 + 15 * 2 + 11,    STR_DEBUG_PAINT_SHOW_SEGMENT_HEIGHTS,   STR_NONE },
-    { WWT_CHECKBOX, 1,  8,  WINDOW_WIDTH - 8,   8 + 15 * 3,     8 + 15 * 3 + 11,    STR_DEBUG_PAINT_SHOW_BOUND_BOXES,       STR_NONE },
-    { WWT_CHECKBOX, 1,  8,  WINDOW_WIDTH - 8,   8 + 15 * 4,     8 + 15 * 4 + 11,    STR_DEBUG_PAINT_SHOW_DIRTY_VISUALS,     STR_NONE },
+    MakeWidget({0,          0}, {WINDOW_WIDTH, WINDOW_HEIGHT}, WWT_FRAME,    WindowColour::Primary                                        ),
+    MakeWidget({8, 8 + 15 * 0}, {         185,            12}, WWT_CHECKBOX, WindowColour::Secondary, STR_DEBUG_PAINT_SHOW_WIDE_PATHS     ),
+    MakeWidget({8, 8 + 15 * 1}, {         185,            12}, WWT_CHECKBOX, WindowColour::Secondary, STR_DEBUG_PAINT_SHOW_BLOCKED_TILES  ),
+    MakeWidget({8, 8 + 15 * 2}, {         185,            12}, WWT_CHECKBOX, WindowColour::Secondary, STR_DEBUG_PAINT_SHOW_SEGMENT_HEIGHTS),
+    MakeWidget({8, 8 + 15 * 3}, {         185,            12}, WWT_CHECKBOX, WindowColour::Secondary, STR_DEBUG_PAINT_SHOW_BOUND_BOXES    ),
+    MakeWidget({8, 8 + 15 * 4}, {         185,            12}, WWT_CHECKBOX, WindowColour::Secondary, STR_DEBUG_PAINT_SHOW_DIRTY_VISUALS  ),
     { WIDGETS_END },
 };
 
@@ -91,8 +91,8 @@ rct_window* window_debug_paint_open()
         return window;
 
     window = window_create(
-        16, context_get_height() - 16 - 33 - WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT, &window_debug_paint_events,
-        WC_DEBUG_PAINT, WF_STICK_TO_FRONT | WF_TRANSPARENT);
+        ScreenCoordsXY(16, context_get_height() - 16 - 33 - WINDOW_HEIGHT), WINDOW_WIDTH, WINDOW_HEIGHT,
+        &window_debug_paint_events, WC_DEBUG_PAINT, WF_STICK_TO_FRONT | WF_TRANSPARENT);
 
     window->widgets = window_debug_paint_widgets;
     window->enabled_widgets = (1 << WIDX_TOGGLE_SHOW_WIDE_PATHS) | (1 << WIDX_TOGGLE_SHOW_BLOCKED_TILES)

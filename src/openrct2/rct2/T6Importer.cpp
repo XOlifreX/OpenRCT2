@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -16,6 +16,7 @@
 #include "../rct12/SawyerChunkReader.h"
 #include "../rct12/SawyerEncoding.h"
 #include "../ride/Ride.h"
+#include "../ride/RideData.h"
 #include "../ride/TrackDesign.h"
 #include "../ride/TrackDesignRepository.h"
 
@@ -25,7 +26,7 @@
 class TD6Importer final : public ITrackImporter
 {
 private:
-    MemoryStream _stream;
+    OpenRCT2::MemoryStream _stream;
     std::string _name;
 
 public:
@@ -39,7 +40,7 @@ public:
         if (String::Equals(extension, ".td6", true))
         {
             _name = GetNameFromTrackPath(path);
-            auto fs = FileStream(path, FILE_MODE_OPEN);
+            auto fs = OpenRCT2::FileStream(path, OpenRCT2::FILE_MODE_OPEN);
             return LoadFromStream(&fs);
         }
         else
@@ -48,7 +49,7 @@ public:
         }
     }
 
-    bool LoadFromStream(IStream* stream) override
+    bool LoadFromStream(OpenRCT2::IStream* stream) override
     {
         if (!gConfigGeneral.allow_loading_with_incorrect_checksum
             && SawyerEncoding::ValidateTrackChecksum(stream) != RCT12TrackDesignVersion::TD6)
@@ -134,36 +135,50 @@ public:
             return nullptr;
         }
 
-        td->operation_setting = std::min(td->operation_setting, RideProperties[td->type].max_value);
+        td->operation_setting = std::min(td->operation_setting, RideTypeDescriptors[td->type].OperatingSettings.MaxValue);
 
         if (td->type == RIDE_TYPE_MAZE)
         {
-            rct_td46_maze_element mazeElement{};
-            mazeElement.all = !0;
-            while (mazeElement.all != 0)
+            rct_td46_maze_element t6MazeElement{};
+            t6MazeElement.all = !0;
+            while (t6MazeElement.all != 0)
             {
-                _stream.Read(&mazeElement, sizeof(rct_td46_maze_element));
-                if (mazeElement.all != 0)
+                _stream.Read(&t6MazeElement, sizeof(rct_td46_maze_element));
+                if (t6MazeElement.all != 0)
                 {
+                    TrackDesignMazeElement mazeElement{};
+                    mazeElement.x = t6MazeElement.x;
+                    mazeElement.y = t6MazeElement.y;
+                    mazeElement.direction = t6MazeElement.direction;
+                    mazeElement.type = t6MazeElement.type;
                     td->maze_elements.push_back(mazeElement);
                 }
             }
         }
         else
         {
-            rct_td46_track_element trackElement{};
+            rct_td46_track_element t6TrackElement{};
             for (uint8_t endFlag = _stream.ReadValue<uint8_t>(); endFlag != 0xFF; endFlag = _stream.ReadValue<uint8_t>())
             {
                 _stream.SetPosition(_stream.GetPosition() - 1);
-                _stream.Read(&trackElement, sizeof(rct_td46_track_element));
+                _stream.Read(&t6TrackElement, sizeof(rct_td46_track_element));
+                TrackDesignTrackElement trackElement{};
+                trackElement.type = t6TrackElement.type;
+                trackElement.flags = t6TrackElement.flags;
                 td->track_elements.push_back(trackElement);
             }
 
-            rct_td6_entrance_element entranceElement{};
+            rct_td6_entrance_element t6EntranceElement{};
             for (uint8_t endFlag = _stream.ReadValue<uint8_t>(); endFlag != 0xFF; endFlag = _stream.ReadValue<uint8_t>())
             {
                 _stream.SetPosition(_stream.GetPosition() - 1);
-                _stream.Read(&entranceElement, sizeof(rct_td6_entrance_element));
+                _stream.Read(&t6EntranceElement, sizeof(rct_td6_entrance_element));
+                TrackDesignEntranceElement entranceElement{};
+                entranceElement.z = (t6EntranceElement.z == -128) ? -1 : t6EntranceElement.z;
+                entranceElement.direction = t6EntranceElement.direction & 0x7F;
+                entranceElement.x = t6EntranceElement.x;
+                entranceElement.y = t6EntranceElement.y;
+                entranceElement.isExit = t6EntranceElement.direction >> 7;
                 td->entrance_elements.push_back(entranceElement);
             }
         }
@@ -171,8 +186,16 @@ public:
         for (uint8_t endFlag = _stream.ReadValue<uint8_t>(); endFlag != 0xFF; endFlag = _stream.ReadValue<uint8_t>())
         {
             _stream.SetPosition(_stream.GetPosition() - 1);
-            rct_td6_scenery_element sceneryElement{};
-            _stream.Read(&sceneryElement, sizeof(rct_td6_scenery_element));
+            rct_td6_scenery_element t6SceneryElement{};
+            _stream.Read(&t6SceneryElement, sizeof(rct_td6_scenery_element));
+            TrackDesignSceneryElement sceneryElement{};
+            sceneryElement.scenery_object = t6SceneryElement.scenery_object;
+            sceneryElement.x = t6SceneryElement.x;
+            sceneryElement.y = t6SceneryElement.y;
+            sceneryElement.z = t6SceneryElement.z;
+            sceneryElement.flags = t6SceneryElement.flags;
+            sceneryElement.primary_colour = t6SceneryElement.primary_colour;
+            sceneryElement.secondary_colour = t6SceneryElement.secondary_colour;
             td->scenery_elements.push_back(sceneryElement);
         }
 

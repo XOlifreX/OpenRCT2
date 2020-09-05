@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -62,7 +62,6 @@ static void paint_ferris_wheel_structure(
     if (rideEntry == nullptr)
         return;
 
-    rct_vehicle* vehicle = nullptr;
     int8_t xOffset = !(direction & 1) ? axisOffset : 0;
     int8_t yOffset = (direction & 1) ? axisOffset : 0;
 
@@ -70,10 +69,9 @@ static void paint_ferris_wheel_structure(
 
     baseImageId = rideEntry->vehicles[0].base_image_id;
 
-    if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && ride->vehicles[0] != SPRITE_INDEX_NULL)
+    auto vehicle = GetEntity<Vehicle>(ride->vehicles[0]);
+    if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && vehicle != nullptr)
     {
-        vehicle = GET_VEHICLE(ride->vehicles[0]);
-
         session->InteractionType = VIEWPORT_INTERACTION_ITEM_SPRITE;
         session->CurrentlyDrawnItem = vehicle;
     }
@@ -102,18 +100,12 @@ static void paint_ferris_wheel_structure(
         session, imageId, xOffset, yOffset, boundBox.length_x, boundBox.length_y, 127, height, boundBox.offset_x,
         boundBox.offset_y, height);
 
-    if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && ride->vehicles[0] != SPRITE_INDEX_NULL)
+    if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && vehicle != nullptr)
     {
-        vehicle = GET_VEHICLE(ride->vehicles[0]);
         for (int32_t i = 0; i < 32; i += 2)
         {
-            if (vehicle->peep[i] == SPRITE_INDEX_NULL)
-            {
-                continue;
-            }
-
-            Peep* peep = GET_PEEP(vehicle->peep[i]);
-            if (peep->state != PEEP_STATE_ON_RIDE)
+            auto* peep = GetEntity<Guest>(vehicle->peep[i]);
+            if (peep == nullptr || peep->State != PEEP_STATE_ON_RIDE)
             {
                 continue;
             }
@@ -155,8 +147,6 @@ static void paint_ferris_wheel(
         edges = edges_1x4_ne_sw[relativeTrackSequence];
     }
 
-    LocationXY16 position = session->MapPosition;
-
     wooden_a_supports_paint_setup(session, direction & 1, 0, height, session->TrackColours[SCHEME_MISC], nullptr);
 
     track_paint_util_paint_floor(session, edges, session->TrackColours[SCHEME_TRACK], height, floorSpritesCork);
@@ -167,23 +157,23 @@ static void paint_ferris_wheel(
     auto ride = get_ride(rideIndex);
     if (ride != nullptr)
     {
-        if (edges & EDGE_NW && track_paint_util_has_fence(EDGE_NW, position, tileElement, ride, rotation))
+        if (edges & EDGE_NW && track_paint_util_has_fence(EDGE_NW, session->MapPosition, tileElement, ride, rotation))
         {
             imageId = SPR_FENCE_ROPE_NW | colourFlags;
             sub_98199C(session, imageId, 0, 0, 32, 1, 7, height, 0, 2, height + 2);
         }
-        if (edges & EDGE_NE && track_paint_util_has_fence(EDGE_NE, position, tileElement, ride, rotation))
+        if (edges & EDGE_NE && track_paint_util_has_fence(EDGE_NE, session->MapPosition, tileElement, ride, rotation))
         {
             imageId = SPR_FENCE_ROPE_NE | colourFlags;
             sub_98199C(session, imageId, 0, 0, 1, 32, 7, height, 2, 0, height + 2);
         }
-        if (edges & EDGE_SE && track_paint_util_has_fence(EDGE_SE, position, tileElement, ride, rotation))
+        if (edges & EDGE_SE && track_paint_util_has_fence(EDGE_SE, session->MapPosition, tileElement, ride, rotation))
         {
             // Bound box is slightly different from track_paint_util_paint_fences
             imageId = SPR_FENCE_ROPE_SE | colourFlags;
             sub_98197C(session, imageId, 0, 0, 28, 1, 7, height, 0, 29, height + 3);
         }
-        if (edges & EDGE_SW && track_paint_util_has_fence(EDGE_SW, position, tileElement, ride, rotation))
+        if (edges & EDGE_SW && track_paint_util_has_fence(EDGE_SW, session->MapPosition, tileElement, ride, rotation))
         {
             imageId = SPR_FENCE_ROPE_SW | colourFlags;
             sub_98197C(session, imageId, 0, 0, 1, 32, 7, height, 30, 0, height + 2);

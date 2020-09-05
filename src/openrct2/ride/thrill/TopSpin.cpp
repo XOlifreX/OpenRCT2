@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -57,15 +57,12 @@ static void top_spin_paint_vehicle(
     height += 3;
 
     rct_ride_entry* rideEntry = get_ride_entry(ride->subtype);
-    rct_vehicle* vehicle = nullptr;
 
     uint8_t seatRotation = 0;
     int8_t armRotation = 0;
-
-    if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && ride->vehicles[0] != SPRITE_INDEX_NULL)
+    Vehicle* vehicle = GetEntity<Vehicle>(ride->vehicles[0]);
+    if (ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK && vehicle != nullptr)
     {
-        vehicle = GET_VEHICLE(ride->vehicles[0]);
-
         session->InteractionType = VIEWPORT_INTERACTION_ITEM_SPRITE;
         session->CurrentlyDrawnItem = vehicle;
 
@@ -142,7 +139,7 @@ static void top_spin_paint_vehicle(
     }
     image_id += seatImageId;
 
-    LocationXYZ16 seatCoords = { al, cl, static_cast<int16_t>(height) };
+    CoordsXYZ seatCoords(al, cl, height);
 
     if (armRotation >= static_cast<int8_t>(std::size(TopSpinSeatHeightOffset)))
     {
@@ -167,8 +164,8 @@ static void top_spin_paint_vehicle(
     }
 
     sub_98199C(
-        session, image_id, (int8_t)seatCoords.x, (int8_t)seatCoords.y, lengthX, lengthY, 90, seatCoords.z, boundBoxOffsetX,
-        boundBoxOffsetY, boundBoxOffsetZ);
+        session, image_id, static_cast<int8_t>(seatCoords.x), static_cast<int8_t>(seatCoords.y), lengthX, lengthY, 90,
+        seatCoords.z, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
 
     rct_drawpixelinfo* dpi = &session->DPI;
     if (dpi->zoom_level < 2 && vehicle != nullptr && vehicle->num_peeps != 0)
@@ -177,8 +174,8 @@ static void top_spin_paint_vehicle(
             | SPRITE_ID_PALETTE_COLOUR_2(vehicle->peep_tshirt_colours[0], vehicle->peep_tshirt_colours[1]);
 
         sub_98199C(
-            session, image_id, (int8_t)seatCoords.x, (int8_t)seatCoords.y, lengthX, lengthY, 90, seatCoords.z, boundBoxOffsetX,
-            boundBoxOffsetY, boundBoxOffsetZ);
+            session, image_id, static_cast<int8_t>(seatCoords.x), static_cast<int8_t>(seatCoords.y), lengthX, lengthY, 90,
+            seatCoords.z, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
 
         if (vehicle->num_peeps > 2)
         {
@@ -186,8 +183,8 @@ static void top_spin_paint_vehicle(
                 | SPRITE_ID_PALETTE_COLOUR_2(vehicle->peep_tshirt_colours[2], vehicle->peep_tshirt_colours[3]);
 
             sub_98199C(
-                session, image_id, (int8_t)seatCoords.x, (int8_t)seatCoords.y, lengthX, lengthY, 90, seatCoords.z,
-                boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
+                session, image_id, static_cast<int8_t>(seatCoords.x), static_cast<int8_t>(seatCoords.y), lengthX, lengthY, 90,
+                seatCoords.z, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
         }
 
         if (vehicle->num_peeps > 4)
@@ -196,8 +193,8 @@ static void top_spin_paint_vehicle(
                 | SPRITE_ID_PALETTE_COLOUR_2(vehicle->peep_tshirt_colours[4], vehicle->peep_tshirt_colours[5]);
 
             sub_98199C(
-                session, image_id, (int8_t)seatCoords.x, (int8_t)seatCoords.y, lengthX, lengthY, 90, seatCoords.z,
-                boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
+                session, image_id, static_cast<int8_t>(seatCoords.x), static_cast<int8_t>(seatCoords.y), lengthX, lengthY, 90,
+                seatCoords.z, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
         }
 
         if (vehicle->num_peeps > 6)
@@ -206,8 +203,8 @@ static void top_spin_paint_vehicle(
                 | SPRITE_ID_PALETTE_COLOUR_2(vehicle->peep_tshirt_colours[6], vehicle->peep_tshirt_colours[7]);
 
             sub_98199C(
-                session, image_id, (int8_t)seatCoords.x, (int8_t)seatCoords.y, lengthX, lengthY, 90, seatCoords.z,
-                boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
+                session, image_id, static_cast<int8_t>(seatCoords.x), static_cast<int8_t>(seatCoords.y), lengthX, lengthY, 90,
+                seatCoords.z, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
         }
     }
 
@@ -252,7 +249,6 @@ static void paint_top_spin(
     trackSequence = track_map_3x3[direction][trackSequence];
 
     int32_t edges = edges_3x3[trackSequence];
-    LocationXY16 position = session->MapPosition;
 
     wooden_a_supports_paint_setup(session, direction & 1, 0, height, session->TrackColours[SCHEME_MISC], nullptr);
 
@@ -262,8 +258,8 @@ static void paint_top_spin(
     if (ride != nullptr)
     {
         track_paint_util_paint_fences(
-            session, edges, position, tileElement, ride, session->TrackColours[SCHEME_MISC], height, fenceSpritesRope,
-            session->CurrentRotation);
+            session, edges, session->MapPosition, tileElement, ride, session->TrackColours[SCHEME_MISC], height,
+            fenceSpritesRope, session->CurrentRotation);
     }
 
     switch (trackSequence)

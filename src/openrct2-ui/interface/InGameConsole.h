@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -10,6 +10,7 @@
 #pragma once
 
 #include <openrct2/interface/InteractiveConsole.h>
+#include <openrct2/world/Location.hpp>
 
 namespace OpenRCT2::Ui
 {
@@ -25,7 +26,7 @@ namespace OpenRCT2::Ui
 
         bool _isOpen = false;
         int32_t _consoleLeft, _consoleTop, _consoleRight, _consoleBottom;
-        int32_t _lastMainViewportX, _lastMainViewportY;
+        ScreenCoordsXY _lastMainViewport;
         std::deque<std::string> _consoleLines;
         utf8 _consoleCurrentLine[CONSOLE_INPUT_SIZE] = {};
         int32_t _consoleCaretTicks;

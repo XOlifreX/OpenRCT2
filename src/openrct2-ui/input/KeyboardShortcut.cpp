@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -19,6 +19,7 @@
 #include <openrct2/Input.h>
 #include <openrct2/OpenRCT2.h>
 #include <openrct2/actions/LoadOrQuitAction.hpp>
+#include <openrct2/actions/SetCheatAction.hpp>
 #include <openrct2/audio/audio.h>
 #include <openrct2/config/Config.h>
 #include <openrct2/interface/Chat.h>
@@ -35,31 +36,36 @@
 #include <openrct2/world/Park.h>
 #include <openrct2/world/Scenery.h>
 
-uint8_t gKeyboardShortcutChangeId;
+extern bool gWindowSceneryEyedropperEnabled;
 
 using shortcut_action = void (*)();
+using namespace OpenRCT2;
+
+Input::Shortcut gKeyboardShortcutChangeId;
 
 namespace
 {
-    extern const shortcut_action shortcut_table[SHORTCUT_COUNT];
+    extern const shortcut_action shortcut_table[Input::ShortcutsCount];
 }
 
 /**
  *
  *  rct2: 0x006E3E68
  */
+using namespace OpenRCT2;
 void keyboard_shortcut_handle(int32_t key)
 {
-    int32_t shortcut = keyboard_shortcuts_get_from_key(key);
-    if (shortcut != -1)
+    auto shortcut = keyboard_shortcuts_get_from_key(key);
+    if (shortcut != Input::Shortcut::Undefined)
     {
         keyboard_shortcut_handle_command(shortcut);
     }
 }
 
-void keyboard_shortcut_handle_command(int32_t shortcutIndex)
+void keyboard_shortcut_handle_command(Input::Shortcut shortcut)
 {
-    if (shortcutIndex >= 0 && static_cast<uint32_t>(shortcutIndex) < std::size(shortcut_table))
+    size_t shortcutIndex = static_cast<size_t>(shortcut);
+    if (shortcutIndex < std::size(shortcut_table))
     {
         shortcut_action action = shortcut_table[shortcutIndex];
         if (action != nullptr)
@@ -199,6 +205,15 @@ static void shortcut_rotate_construction_object()
     if (w != nullptr && !widget_is_disabled(w, WC_MAP__WIDX_ROTATE_90) && w->widgets[WC_MAP__WIDX_ROTATE_90].type != WWT_EMPTY)
     {
         window_event_mouse_up_call(w, WC_MAP__WIDX_ROTATE_90);
+        return;
+    }
+
+    // Rotate selected element in tile inspector
+    w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_ROTATE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_ROTATE].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_ROTATE);
         return;
     }
 }
@@ -795,9 +810,230 @@ static void shortcut_open_scenery_picker()
     }
 }
 
+static void shortcut_scale_up()
+{
+    gConfigGeneral.window_scale += 0.25f;
+    config_save_default();
+    gfx_invalidate_screen();
+    context_trigger_resize();
+    context_update_cursor_scale();
+}
+
+static void shortcut_scale_down()
+{
+    gConfigGeneral.window_scale -= 0.25f;
+    gConfigGeneral.window_scale = std::max(0.5f, gConfigGeneral.window_scale);
+    config_save_default();
+    gfx_invalidate_screen();
+    context_trigger_resize();
+    context_update_cursor_scale();
+}
+
+// Tile inspector shortcuts
+static void shortcut_insert_corrupt_element()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_CORRUPT)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_CORRUPT].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_CORRUPT);
+        return;
+    }
+}
+
+static void shortcut_copy_element()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_COPY)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_COPY].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_COPY);
+        return;
+    }
+}
+
+static void shortcut_paste_element()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_PASTE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_PASTE].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_PASTE);
+        return;
+    }
+}
+
+static void shortcut_remove_element()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_REMOVE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_REMOVE].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_REMOVE);
+        return;
+    }
+}
+
+static void shortcut_move_element_up()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_MOVE_UP)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_MOVE_UP].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_MOVE_UP);
+        return;
+    }
+}
+
+static void shortcut_move_element_down()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_BUTTON_MOVE_DOWN)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_BUTTON_MOVE_DOWN].type != WWT_EMPTY)
+    {
+        window_event_mouse_up_call(w, WC_TILE_INSPECTOR__WIDX_BUTTON_MOVE_DOWN);
+        return;
+    }
+}
+
+static void shortcut_increase_x_coord()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_SPINNER_X_INCREASE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_SPINNER_X_INCREASE].type != WWT_EMPTY)
+    {
+        window_event_mouse_down_call(w, WC_TILE_INSPECTOR__WIDX_SPINNER_X_INCREASE);
+        return;
+    }
+}
+
+static void shortcut_decrease_x_coord()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_SPINNER_X_DECREASE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_SPINNER_X_DECREASE].type != WWT_EMPTY)
+    {
+        window_event_mouse_down_call(w, WC_TILE_INSPECTOR__WIDX_SPINNER_X_DECREASE);
+        return;
+    }
+}
+
+static void shortcut_increase_y_coord()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_SPINNER_Y_INCREASE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_SPINNER_Y_INCREASE].type != WWT_EMPTY)
+    {
+        window_event_mouse_down_call(w, WC_TILE_INSPECTOR__WIDX_SPINNER_Y_INCREASE);
+        return;
+    }
+}
+
+static void shortcut_decrease_y_coord()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr && !widget_is_disabled(w, WC_TILE_INSPECTOR__WIDX_SPINNER_Y_DECREASE)
+        && w->widgets[WC_TILE_INSPECTOR__WIDX_SPINNER_Y_DECREASE].type != WWT_EMPTY)
+    {
+        window_event_mouse_down_call(w, WC_TILE_INSPECTOR__WIDX_SPINNER_Y_DECREASE);
+        return;
+    }
+}
+
+static void shortcut_increase_element_height()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr)
+    {
+        int action = -1;
+        switch (w->page)
+        {
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_SURFACE:
+                action = WC_TILE_INSPECTOR__WIDX_SURFACE_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_PATH:
+                action = WC_TILE_INSPECTOR__WIDX_PATH_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_TRACK:
+                action = WC_TILE_INSPECTOR__WIDX_TRACK_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_SCENERY:
+                action = WC_TILE_INSPECTOR__WIDX_SCENERY_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_ENTRANCE:
+                action = WC_TILE_INSPECTOR__WIDX_ENTRANCE_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_WALL:
+                action = WC_TILE_INSPECTOR__WIDX_WALL_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_LARGE_SCENERY:
+                action = WC_TILE_INSPECTOR__WIDX_LARGE_SCENERY_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_BANNER:
+                action = WC_TILE_INSPECTOR__WIDX_BANNER_SPINNER_HEIGHT_INCREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_CORRUPT:
+                action = WC_TILE_INSPECTOR__WIDX_CORRUPT_SPINNER_HEIGHT_INCREASE;
+                break;
+        }
+        if (action != -1 && !widget_is_disabled(w, action) && w->widgets[action].type != WWT_EMPTY)
+            window_event_mouse_down_call(w, action);
+        return;
+    }
+}
+
+static void shortcut_decrease_element_height()
+{
+    rct_window* w = window_find_by_class(WC_TILE_INSPECTOR);
+    if (w != nullptr)
+    {
+        int action = -1;
+        switch (w->page)
+        {
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_SURFACE:
+                action = WC_TILE_INSPECTOR__WIDX_SURFACE_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_PATH:
+                action = WC_TILE_INSPECTOR__WIDX_PATH_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_TRACK:
+                action = WC_TILE_INSPECTOR__WIDX_TRACK_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_SCENERY:
+                action = WC_TILE_INSPECTOR__WIDX_SCENERY_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_ENTRANCE:
+                action = WC_TILE_INSPECTOR__WIDX_ENTRANCE_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_WALL:
+                action = WC_TILE_INSPECTOR__WIDX_WALL_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_LARGE_SCENERY:
+                action = WC_TILE_INSPECTOR__WIDX_LARGE_SCENERY_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_BANNER:
+                action = WC_TILE_INSPECTOR__WIDX_BANNER_SPINNER_HEIGHT_DECREASE;
+                break;
+            case WC_TILE_INSPECTOR__TILE_INSPECTOR_PAGE_CORRUPT:
+                action = WC_TILE_INSPECTOR__WIDX_CORRUPT_SPINNER_HEIGHT_DECREASE;
+                break;
+        }
+        if (action != -1 && !widget_is_disabled(w, action) && w->widgets[action].type != WWT_EMPTY)
+            window_event_mouse_down_call(w, action);
+        return;
+    }
+}
+
+static void shortcut_toggle_clearance_checks()
+{
+    auto setCheatAction = SetCheatAction(CheatType::DisableClearanceChecks, gCheatsDisableClearanceChecks ? 0 : 1);
+    GameActions::Execute(&setCheatAction);
+}
+
 namespace
 {
-    const shortcut_action shortcut_table[SHORTCUT_COUNT] = {
+    using namespace OpenRCT2::Input;
+    const shortcut_action shortcut_table[ShortcutsCount] = {
         shortcut_close_top_most_window,
         shortcut_close_all_floating_windows,
         shortcut_cancel_construction_mode,
@@ -870,6 +1106,21 @@ namespace
         shortcut_open_tile_inspector,
         shortcut_advance_to_next_tick,
         shortcut_open_scenery_picker,
+        shortcut_scale_up,
+        shortcut_scale_down,
+        shortcut_insert_corrupt_element,
+        shortcut_copy_element,
+        shortcut_paste_element,
+        shortcut_remove_element,
+        shortcut_move_element_up,
+        shortcut_move_element_down,
+        shortcut_increase_x_coord,
+        shortcut_decrease_x_coord,
+        shortcut_increase_y_coord,
+        shortcut_decrease_y_coord,
+        shortcut_increase_element_height,
+        shortcut_decrease_element_height,
+        shortcut_toggle_clearance_checks,
     };
 } // anonymous namespace
 

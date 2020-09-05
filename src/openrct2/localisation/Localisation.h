@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -20,10 +20,10 @@
 #include <cstring>
 #include <string>
 
-bool utf8_is_format_code(int32_t codepoint);
-bool utf8_is_colour_code(int32_t codepoint);
-bool utf8_should_use_sprite_for_codepoint(int32_t codepoint);
-int32_t utf8_get_format_code_arg_length(int32_t codepoint);
+bool utf8_is_format_code(char32_t codepoint);
+bool utf8_is_colour_code(char32_t codepoint);
+bool utf8_should_use_sprite_for_codepoint(char32_t codepoint);
+int32_t utf8_get_format_code_arg_length(char32_t codepoint);
 void utf8_remove_formatting(utf8* string, bool allowColours);
 
 std::string format_string(rct_string_id format, const void* args);
@@ -80,25 +80,86 @@ extern const rct_string_id DateDayNames[31];
 extern const rct_string_id DateGameMonthNames[MONTH_COUNT];
 extern const rct_string_id DateGameShortMonthNames[MONTH_COUNT];
 
-[[maybe_unused]] static inline void set_format_arg_body(uint8_t* args, size_t offset, uintptr_t value, size_t size)
+class Formatter
 {
-    std::memcpy(args + offset, &value, size);
-}
+    const uint8_t* StartBuf;
+    uint8_t* CurrentBuf;
 
-#define set_format_arg(offset, type, value)                                                                                    \
-    do                                                                                                                         \
-    {                                                                                                                          \
-        static_assert(sizeof(type) <= sizeof(uintptr_t), "Type too large");                                                    \
-        set_format_arg_body(gCommonFormatArgs, offset, (uintptr_t)(value), sizeof(type));                                      \
-    } while (false)
+public:
+    explicit Formatter(uint8_t* buf)
+        : StartBuf(buf)
+        , CurrentBuf(buf)
+    {
+    }
 
-#define set_format_arg_on(args, offset, type, value) set_format_arg_body(args, offset, (uintptr_t)(value), sizeof(type))
+    static Formatter Common()
+    {
+        return Formatter(gCommonFormatArgs);
+    }
 
-#define set_map_tooltip_format_arg(offset, type, value)                                                                        \
-    do                                                                                                                         \
-    {                                                                                                                          \
-        static_assert(sizeof(type) <= sizeof(uintptr_t), "Type too large");                                                    \
-        set_format_arg_body(gMapTooltipFormatArgs, offset, (uintptr_t)(value), sizeof(type));                                  \
-    } while (false)
+    static Formatter MapTooltip()
+    {
+        return Formatter(gMapTooltipFormatArgs);
+    }
+
+    auto Buf()
+    {
+        return CurrentBuf;
+    }
+
+    auto GetStartBuf() const
+    {
+        return StartBuf;
+    }
+
+    void Increment(size_t count)
+    {
+        CurrentBuf += count;
+    }
+
+    void Rewind()
+    {
+        CurrentBuf -= NumBytes();
+    }
+
+    std::size_t NumBytes() const
+    {
+        return CurrentBuf - StartBuf;
+    }
+
+    template<typename TSpecified, typename TDeduced> Formatter& Add(TDeduced value)
+    {
+        static_assert(sizeof(TSpecified) <= sizeof(uintptr_t), "Type too large");
+        static_assert(sizeof(TDeduced) <= sizeof(uintptr_t), "Type too large");
+
+        // clang-format off
+        static_assert(
+            std::is_same_v<TSpecified, char*> ||
+            std::is_same_v<TSpecified, const char*> ||
+            std::is_same_v<TSpecified, int16_t> ||
+            std::is_same_v<TSpecified, int32_t> ||
+            std::is_same_v<TSpecified, money32> ||
+            std::is_same_v<TSpecified, rct_string_id> ||
+            std::is_same_v<TSpecified, uint16_t> ||
+            std::is_same_v<TSpecified, uint32_t> ||
+            std::is_same_v<TSpecified, utf8*> ||
+            std::is_same_v<TSpecified, const utf8*>
+        );
+        // clang-format on
+
+        uintptr_t convertedValue;
+        if constexpr (std::is_integral_v<TSpecified>)
+        {
+            convertedValue = static_cast<uintptr_t>(value);
+        }
+        else
+        {
+            convertedValue = reinterpret_cast<uintptr_t>(value);
+        }
+        std::memcpy(CurrentBuf, &convertedValue, sizeof(TSpecified));
+        Increment(sizeof(TSpecified));
+        return *this;
+    }
+};
 
 #endif

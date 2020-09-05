@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -18,11 +18,18 @@
 #include "../network/network.h"
 #include "../platform/platform.h"
 #include "../scenario/Scenario.h"
+#include "../scripting/Duktape.hpp"
+#include "../scripting/HookEngine.h"
+#include "../scripting/ScriptEngine.h"
+#include "../ui/UiContext.h"
+#include "../ui/WindowManager.h"
 #include "../world/Park.h"
 #include "../world/Scenery.h"
 
 #include <algorithm>
 #include <iterator>
+
+using namespace OpenRCT2;
 
 GameActionResult::GameActionResult(GA_ERROR error, rct_string_id message)
 {
@@ -43,6 +50,34 @@ GameActionResult::GameActionResult(GA_ERROR error, rct_string_id title, rct_stri
     ErrorTitle = title;
     ErrorMessage = message;
     std::copy_n(args, ErrorMessageArgs.size(), ErrorMessageArgs.begin());
+}
+
+std::string GameActionResult::GetErrorTitle() const
+{
+    std::string title;
+    if (auto error = ErrorTitle.AsString())
+    {
+        title = *error;
+    }
+    else
+    {
+        title = format_string(ErrorTitle.GetStringId(), ErrorMessageArgs.data());
+    }
+    return title;
+}
+
+std::string GameActionResult::GetErrorMessage() const
+{
+    std::string message;
+    if (auto error = ErrorMessage.AsString())
+    {
+        message = *error;
+    }
+    else
+    {
+        message = format_string(ErrorMessage.GetStringId(), ErrorMessageArgs.data());
+    }
+    return message;
 }
 
 namespace GameActions
@@ -76,6 +111,7 @@ namespace GameActions
     static GameActionFactory _actions[GAME_COMMAND_COUNT];
     static std::multiset<QueuedGameAction> _actionQueue;
     static uint32_t _nextUniqueId = 0;
+    static bool _suspended = false;
 
     GameActionFactory Register(uint32_t id, GameActionFactory factory)
     {
@@ -93,6 +129,16 @@ namespace GameActions
             return _actions[id] != nullptr;
         }
         return false;
+    }
+
+    void SuspendQueue()
+    {
+        _suspended = true;
+    }
+
+    void ResumeQueue()
+    {
+        _suspended = false;
     }
 
     void Enqueue(const GameAction* ga, uint32_t tick)
@@ -114,6 +160,12 @@ namespace GameActions
 
     void ProcessQueue()
     {
+        if (_suspended)
+        {
+            // Do nothing if suspended, this is usually the case between connect and map loads.
+            return;
+        }
+
         const uint32_t currentTick = gCurrentTicks;
 
         while (_actionQueue.begin() != _actionQueue.end())
@@ -128,9 +180,10 @@ namespace GameActions
                     // This should never happen.
                     Guard::Assert(
                         false,
-                        "Discarding game action from tick behind current tick, ID: %08X, Action Tick: %08X, Current Tick: "
+                        "Discarding game action %s (%u) from tick behind current tick, ID: %08X, Action Tick: %08X, Current "
+                        "Tick: "
                         "%08X\n",
-                        queued.uniqueId, queued.tick, currentTick);
+                        queued.action->GetName(), queued.action->GetType(), queued.uniqueId, queued.tick, currentTick);
                 }
                 else if (queued.tick > currentTick)
                 {
@@ -248,21 +301,13 @@ namespace GameActions
 
         auto result = action->Query();
 
-        // Only top level actions affect the command position.
-        if (topLevel)
-        {
-            gCommandPosition.x = result->Position.x;
-            gCommandPosition.y = result->Position.y;
-            gCommandPosition.z = result->Position.z;
-        }
-
         if (result->Error == GA_ERROR::OK)
         {
             if (!finance_check_affordability(result->Cost, action->GetFlags()))
             {
                 result->Error = GA_ERROR::INSUFFICIENT_FUNDS;
                 result->ErrorMessage = STR_NOT_ENOUGH_CASH_REQUIRES;
-                set_format_arg_on(result->ErrorMessageArgs.data(), 0, uint32_t, result->Cost);
+                Formatter(result->ErrorMessageArgs.data()).Add<uint32_t>(result->Cost);
             }
         }
         return result;
@@ -317,7 +362,7 @@ namespace GameActions
 
         if (result->Error != GA_ERROR::OK)
         {
-            snprintf(temp, sizeof(temp), ") Failed, %u", (uint32_t)result->Error);
+            snprintf(temp, sizeof(temp), ") Failed, %u", static_cast<uint32_t>(result->Error));
         }
         else
         {
@@ -326,7 +371,7 @@ namespace GameActions
 
         output.Write(temp, strlen(temp) + 1);
 
-        const char* text = (const char*)output.GetData();
+        const char* text = static_cast<const char*>(output.GetData());
         log_verbose("%s", text);
 
         network_append_server_log(text);
@@ -357,6 +402,15 @@ namespace GameActions
         }
 
         GameActionResult::Ptr result = QueryInternal(action, topLevel);
+#ifdef ENABLE_SCRIPTING
+        if (result->Error == GA_ERROR::OK
+            && ((network_get_mode() == NETWORK_MODE_NONE) || (flags & GAME_COMMAND_FLAG_NETWORKED)))
+        {
+            auto& scriptEngine = GetContext()->GetScriptEngine();
+            scriptEngine.RunGameActionHooks(*action, result, false);
+            // Script hooks may now have changed the game action result...
+        }
+#endif
         if (result->Error == GA_ERROR::OK)
         {
             if (topLevel)
@@ -392,6 +446,14 @@ namespace GameActions
 
             // Execute the action, changing the game state
             result = action->Execute();
+#ifdef ENABLE_SCRIPTING
+            if (result->Error == GA_ERROR::OK)
+            {
+                auto& scriptEngine = GetContext()->GetScriptEngine();
+                scriptEngine.RunGameActionHooks(*action, result, true);
+                // Script hooks may now have changed the game action result...
+            }
+#endif
 
             LogActionFinish(logContext, action, result);
 
@@ -399,25 +461,22 @@ namespace GameActions
             if (!topLevel)
                 return result;
 
-            gCommandPosition.x = result->Position.x;
-            gCommandPosition.y = result->Position.y;
-            gCommandPosition.z = result->Position.z;
-
             // Update money balance
             if (result->Error == GA_ERROR::OK && finance_check_money_required(flags) && result->Cost != 0)
             {
-                finance_payment(result->Cost, result->ExpenditureType);
-                rct_money_effect::Create(result->Cost);
+                finance_payment(result->Cost, result->Expenditure);
+                MoneyEffect::Create(result->Cost, result->Position);
             }
 
             if (!(actionFlags & GA_FLAGS::CLIENT_ONLY) && result->Error == GA_ERROR::OK)
             {
-                if (network_get_mode() == NETWORK_MODE_SERVER)
+                if (network_get_mode() != NETWORK_MODE_NONE)
                 {
                     NetworkPlayerId_t playerId = action->GetPlayer();
 
                     int32_t playerIndex = network_get_player_index(playerId.id);
-                    Guard::Assert(playerIndex != -1);
+                    Guard::Assert(
+                        playerIndex != -1, "Unable to find player %u for game action %u", playerId, action->GetType());
 
                     network_set_player_last_action(playerIndex, action->GetType());
                     if (result->Cost != 0)
@@ -425,12 +484,12 @@ namespace GameActions
                         network_add_player_money_spent(playerIndex, result->Cost);
                     }
 
-                    if (result->Position.x != LOCATION_NULL)
+                    if (!result->Position.isNull())
                     {
-                        network_set_player_last_action_coord(playerId, gCommandPosition);
+                        network_set_player_last_action_coord(playerIndex, result->Position);
                     }
                 }
-                else if (network_get_mode() == NETWORK_MODE_NONE)
+                else
                 {
                     bool commandExecutes = (flags & GAME_COMMAND_FLAG_GHOST) == 0 && (flags & GAME_COMMAND_FLAG_NO_SPEND) == 0;
 
@@ -480,9 +539,8 @@ namespace GameActions
 
         if (result->Error != GA_ERROR::OK && shouldShowError)
         {
-            // Show the error box
-            std::copy(result->ErrorMessageArgs.begin(), result->ErrorMessageArgs.end(), gCommonFormatArgs);
-            context_show_error(result->ErrorTitle, result->ErrorMessage);
+            auto windowManager = GetContext()->GetUiContext()->GetWindowManager();
+            windowManager->ShowError(result->GetErrorTitle(), result->GetErrorMessage());
         }
 
         return result;
@@ -497,5 +555,38 @@ namespace GameActions
     {
         return ExecuteInternal(action, false);
     }
-
 } // namespace GameActions
+
+bool GameAction::LocationValid(const CoordsXY& coords) const
+{
+    auto result = map_is_location_valid(coords);
+    if (!result)
+        return false;
+#ifdef ENABLE_SCRIPTING
+    auto& hookEngine = GetContext()->GetScriptEngine().GetHookEngine();
+    if (hookEngine.HasSubscriptions(OpenRCT2::Scripting::HOOK_TYPE::ACTION_LOCATION))
+    {
+        auto ctx = GetContext()->GetScriptEngine().GetContext();
+
+        // Create event args object
+        auto obj = OpenRCT2::Scripting::DukObject(ctx);
+        obj.Set("x", coords.x);
+        obj.Set("y", coords.y);
+        obj.Set("player", _playerId);
+        obj.Set("type", _type);
+
+        auto flags = GetActionFlags();
+        obj.Set("isClientOnly", (flags & GA_FLAGS::CLIENT_ONLY) != 0);
+        obj.Set("result", true);
+
+        // Call the subscriptions
+        auto e = obj.Take();
+        hookEngine.Call(OpenRCT2::Scripting::HOOK_TYPE::ACTION_LOCATION, e, true);
+
+        auto scriptResult = OpenRCT2::Scripting::AsOrDefault(e["result"], true);
+
+        return scriptResult;
+    }
+#endif
+    return true;
+}

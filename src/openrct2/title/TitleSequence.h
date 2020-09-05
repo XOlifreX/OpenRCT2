@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -62,7 +62,6 @@ enum TITLE_SCRIPT
 {
     TITLE_SCRIPT_UNDEFINED = 0xFF,
     TITLE_SCRIPT_WAIT = 0,
-    TITLE_SCRIPT_LOADMM,
     TITLE_SCRIPT_LOCATION,
     TITLE_SCRIPT_ROTATE,
     TITLE_SCRIPT_ZOOM,
@@ -73,7 +72,6 @@ enum TITLE_SCRIPT
     TITLE_SCRIPT_SPEED,
     TITLE_SCRIPT_LOOP,
     TITLE_SCRIPT_ENDLOOP,
-    TITLE_SCRIPT_LOADRCT1,
     TITLE_SCRIPT_LOADSC,
 };
 

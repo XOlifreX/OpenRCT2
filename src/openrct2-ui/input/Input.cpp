@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -81,7 +81,6 @@ static void input_handle_chat(int32_t key)
 static void game_handle_key_scroll()
 {
     rct_window* mainWindow;
-    int32_t scrollX, scrollY;
 
     mainWindow = window_get_main();
     if (mainWindow == nullptr)
@@ -99,21 +98,19 @@ static void game_handle_key_scroll()
     if (gChatOpen)
         return;
 
-    scrollX = 0;
-    scrollY = 0;
     const uint8_t* keysState = context_get_keys_state();
-    get_keyboard_map_scroll(keysState, &scrollX, &scrollY);
+    auto scrollCoords = get_keyboard_map_scroll(keysState);
 
-    if (scrollX != 0 || scrollY != 0)
+    if (scrollCoords.x != 0 || scrollCoords.y != 0)
     {
         window_unfollow_sprite(mainWindow);
     }
-    input_scroll_viewport(scrollX, scrollY);
+    input_scroll_viewport(scrollCoords);
 }
 
 static int32_t input_scancode_to_rct_keycode(int32_t sdl_key)
 {
-    char keycode = (char)SDL_GetKeyFromScancode((SDL_Scancode)sdl_key);
+    char keycode = static_cast<char>(SDL_GetKeyFromScancode(static_cast<SDL_Scancode>(sdl_key)));
 
     // Until we reshuffle the text files to use the new positions
     // this will suffice to move the majority to the correct positions.
@@ -137,7 +134,7 @@ void input_handle_keyboard(bool isTitle)
         if (!isTitle)
         {
             // Handle mouse scrolling
-            if (input_get_state() == INPUT_STATE_NORMAL && gConfigGeneral.edge_scrolling)
+            if (input_get_state() == InputState::Normal && gConfigGeneral.edge_scrolling)
             {
                 if (!(gInputPlaceObjectModifier & (PLACE_OBJECT_MODIFIER_SHIFT_Z | PLACE_OBJECT_MODIFIER_COPY_Z)))
                 {
@@ -173,7 +170,7 @@ void input_handle_keyboard(bool isTitle)
         }
     }
 
-    if (gConfigGeneral.virtual_floor_style != VIRTUAL_FLOOR_STYLE_OFF)
+    if (gConfigGeneral.virtual_floor_style != VirtualFloorStyles::Off)
     {
         if (gInputPlaceObjectModifier & (PLACE_OBJECT_MODIFIER_COPY_Z | PLACE_OBJECT_MODIFIER_SHIFT_Z))
             virtual_floor_enable();

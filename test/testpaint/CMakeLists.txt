@@ -60,7 +60,6 @@ file(GLOB_RECURSE ORCT2_RIDE_DEP_SOURCES
     "${OPENRCT2_SRCPATH}/paint/tile_element/Paint.TileElement.cpp"
     "${OPENRCT2_SRCPATH}/ride/RideData.cpp"
     "${OPENRCT2_SRCPATH}/ride/TrackData.cpp"
-    "${OPENRCT2_SRCPATH}/ride/TrackDataOld.cpp"
     "${OPENRCT2_SRCPATH}/ride/TrackPaint.cpp"
     "${OPENRCT2_SRCPATH}/core/Console.cpp"
     "${OPENRCT2_SRCPATH}/core/Diagnostics.cpp"
@@ -100,5 +99,5 @@ if (FORCE32)
 else ()
     set(TESTPAINT_64BIT_FLAGS "-Wno-int-to-pointer-cast -fpermissive -Wno-error")
 endif ()
-set_target_properties(testpaint PROPERTIES COMPILE_FLAGS "-DNO_VEHICLES -D__TESTPAINT__ -Wno-unused ${TESTPAINT_64BIT_FLAGS}")
+set_target_properties(testpaint PROPERTIES COMPILE_FLAGS "-DNO_VEHICLES -D__TESTPAINT__ -Wno-unused ${TESTPAINT_64BIT_FLAGS} -DDISABLE_HTTP")
 add_dependencies(testpaint segfiles)

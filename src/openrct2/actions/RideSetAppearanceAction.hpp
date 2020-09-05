@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -38,7 +38,7 @@ enum class RideSetAppearanceType : uint8_t
 DEFINE_GAME_ACTION(RideSetAppearanceAction, GAME_COMMAND_SET_RIDE_APPEARANCE, GameActionResult)
 {
 private:
-    NetworkRideId_t _rideIndex{ -1 };
+    NetworkRideId_t _rideIndex{ RideIdNewNull };
     uint8_t _type;
     uint8_t _value;
     uint32_t _index;
@@ -53,6 +53,14 @@ public:
         , _value(value)
         , _index(index)
     {
+    }
+
+    void AcceptParameters(GameActionParameterVisitor & visitor) override
+    {
+        visitor.Visit("ride", _rideIndex);
+        visitor.Visit("type", _type);
+        visitor.Visit("value", _value);
+        visitor.Visit("index", _index);
     }
 
     uint16_t GetActionFlags() const override
@@ -159,11 +167,10 @@ public:
         window_invalidate_by_number(WC_RIDE, _rideIndex);
 
         auto res = std::make_unique<GameActionResult>();
-        if (ride->overall_view.xy != RCT_XY8_UNDEFINED)
+        if (!ride->overall_view.isNull())
         {
-            res->Position.x = ride->overall_view.x * 32 + 16;
-            res->Position.y = ride->overall_view.y * 32 + 16;
-            res->Position.z = tile_element_height(res->Position);
+            auto location = ride->overall_view.ToTileCentre();
+            res->Position = { location, tile_element_height(location) };
         }
 
         return res;

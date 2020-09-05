@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -21,9 +21,64 @@ struct Ride;
 
 #define TRACK_PREVIEW_IMAGE_SIZE (370 * 217)
 
+/* Track Entrance entry */
+struct TrackDesignEntranceElement
+{
+    int8_t z;
+    uint8_t direction;
+    int16_t x;
+    int16_t y;
+    bool isExit;
+};
+
+/* Track Scenery entry  size: 0x16 */
+struct TrackDesignSceneryElement
+{
+    rct_object_entry scenery_object; // 0x00
+    int8_t x;                        // 0x10
+    int8_t y;                        // 0x11
+    int8_t z;                        // 0x12
+    uint8_t flags;                   // 0x13 direction quadrant tertiary colour
+    uint8_t primary_colour;          // 0x14
+    uint8_t secondary_colour;        // 0x15
+};
+
 /**
  * Track design structure.
  */
+
+/* Track Element entry  size: 0x03 */
+struct TrackDesignTrackElement
+{
+    track_type_t type; // 0x00
+    uint8_t flags;     // 0x02
+};
+
+/* Maze Element entry   size: 0x04 */
+struct TrackDesignMazeElement
+{
+    union
+    {
+        uint32_t all;
+        struct
+        {
+            int8_t x;
+            int8_t y;
+            union
+            {
+                uint16_t maze_entry;
+                struct
+                {
+                    uint8_t direction;
+                    uint8_t type;
+                };
+            };
+        };
+    };
+};
+
+class DataSerialiser;
+
 struct TrackDesign
 {
     uint8_t type;
@@ -33,7 +88,7 @@ struct TrackDesign
     uint8_t ride_mode;
     uint8_t track_flags;
     uint8_t colour_scheme;
-    rct_vehicle_colour vehicle_colours[RCT2_MAX_CARS_PER_TRAIN];
+    std::array<rct_vehicle_colour, RCT2_MAX_CARS_PER_TRAIN> vehicle_colours;
     uint8_t entrance_style;
     uint8_t total_air_time;
     uint8_t depart_flags;
@@ -67,16 +122,17 @@ struct TrackDesign
     uint8_t lift_hill_speed;
     uint8_t num_circuits;
 
-    std::vector<rct_td46_maze_element> maze_elements;
-    std::vector<rct_td46_track_element> track_elements;
-    std::vector<rct_td6_entrance_element> entrance_elements;
-    std::vector<rct_td6_scenery_element> scenery_elements;
+    std::vector<TrackDesignMazeElement> maze_elements;
+    std::vector<TrackDesignTrackElement> track_elements;
+    std::vector<TrackDesignEntranceElement> entrance_elements;
+    std::vector<TrackDesignSceneryElement> scenery_elements;
 
     std::string name;
 
 public:
     rct_string_id CreateTrackDesign(const Ride& ride);
     rct_string_id CreateTrackDesignScenery();
+    void Serialise(DataSerialiser& stream);
 
 private:
     uint8_t _saveDirection;
@@ -127,6 +183,8 @@ enum
     PTD_OPERATION_REMOVE_GHOST,
 };
 
+static constexpr uint8_t PTD_OPERATION_FLAG_IS_REPLAY = (1 << 7);
+
 enum
 {
     MAZE_ELEMENT_TYPE_MAZE_TRACK = 0,
@@ -136,12 +194,10 @@ enum
 
 extern TrackDesign* gActiveTrackDesign;
 extern bool gTrackDesignSceneryToggle;
-extern LocationXYZ16 gTrackPreviewMin;
-extern LocationXYZ16 gTrackPreviewMax;
-extern LocationXYZ16 gTrackPreviewOrigin;
 
 extern bool byte_9D8150;
 
+extern bool _trackDesignPlaceStateSceneryUnavailable;
 extern bool gTrackDesignSaveMode;
 extern ride_id_t gTrackDesignSaveRideIndex;
 
@@ -149,13 +205,7 @@ std::unique_ptr<TrackDesign> track_design_open(const utf8* path);
 
 void track_design_mirror(TrackDesign* td6);
 
-int32_t place_virtual_track(
-    TrackDesign* td6, uint8_t ptdOperation, bool placeScenery, Ride* ride, int16_t x, int16_t y, int16_t z);
-
-void game_command_place_track_design(
-    int32_t* eax, int32_t* ebx, int32_t* ecx, int32_t* edx, int32_t* esi, int32_t* edi, int32_t* ebp);
-void game_command_place_maze_design(
-    int32_t* eax, int32_t* ebx, int32_t* ecx, int32_t* edx, int32_t* esi, int32_t* edi, int32_t* ebp);
+int32_t place_virtual_track(TrackDesign* td6, uint8_t ptdOperation, bool placeScenery, Ride* ride, const CoordsXYZ& coords);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Track design preview
@@ -169,11 +219,12 @@ void track_design_save_init();
 void track_design_save_reset_scenery();
 bool track_design_save_contains_tile_element(const TileElement* tileElement);
 void track_design_save_select_nearby_scenery(ride_id_t rideIndex);
-void track_design_save_select_tile_element(int32_t interactionType, CoordsXY loc, TileElement* tileElement, bool collect);
+void track_design_save_select_tile_element(
+    int32_t interactionType, const CoordsXY& loc, TileElement* tileElement, bool collect);
 
 bool track_design_are_entrance_and_exit_placed();
 
-extern std::vector<rct_td6_scenery_element> _trackSavedTileElementsDesc;
+extern std::vector<TrackDesignSceneryElement> _trackSavedTileElementsDesc;
 extern std::vector<const TileElement*> _trackSavedTileElements;
 
 #endif

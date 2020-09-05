@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -21,7 +21,7 @@
  *  rct2: 0x006D44D5
  */
 void vehicle_visual_submarine(
-    paint_session* session, int32_t x, int32_t imageDirection, int32_t y, int32_t z, const rct_vehicle* vehicle,
+    paint_session* session, int32_t x, int32_t imageDirection, int32_t y, int32_t z, const Vehicle* vehicle,
     const rct_ride_entry_vehicle* vehicleEntry)
 {
     auto imageFlags = SPRITE_ID_PALETTE_COLOUR_3(vehicle->colours.body_colour, vehicle->colours.trim_colour);
@@ -54,7 +54,7 @@ void vehicle_visual_submarine(
         }
         baseImage_id *= vehicleEntry->base_num_frames;
         baseImage_id += vehicleEntry->base_image_id;
-        baseImage_id += vehicle->swing_sprite;
+        baseImage_id += vehicle->SwingSprite;
     }
 
     vehicle_boundbox bb = VehicleBoundboxes[vehicleEntry->draw_order][imageDirection / 2];
@@ -86,7 +86,6 @@ static void submarine_ride_paint_track_station(
     if (ride == nullptr)
         return;
 
-    LocationXY16 position = session->MapPosition;
     auto stationObj = ride_get_station_object(ride);
     int32_t heightLower = height - 16;
     uint32_t imageId;
@@ -96,18 +95,18 @@ static void submarine_ride_paint_track_station(
         imageId = SPR_TRACK_SUBMARINE_RIDE_MINI_HELICOPTERS_FLAT_SE_NW | session->TrackColours[SCHEME_TRACK];
         sub_98197C(session, imageId, 0, 0, 20, 32, 3, heightLower, 6, 0, heightLower);
 
-        paint_util_push_tunnel_right(session, height, TUNNEL_6);
+        paint_util_push_tunnel_right(session, height, TUNNEL_SQUARE_FLAT);
         track_paint_util_draw_pier(
-            session, ride, stationObj, position, direction, height, tileElement, session->CurrentRotation);
+            session, ride, stationObj, session->MapPosition, direction, height, tileElement, session->CurrentRotation);
     }
     else
     {
         imageId = SPR_TRACK_SUBMARINE_RIDE_MINI_HELICOPTERS_FLAT_NE_SW | session->TrackColours[SCHEME_TRACK];
         sub_98197C(session, imageId, 0, 0, 32, 20, 3, heightLower, 0, 6, heightLower);
 
-        paint_util_push_tunnel_left(session, height, TUNNEL_6);
+        paint_util_push_tunnel_left(session, height, TUNNEL_SQUARE_FLAT);
         track_paint_util_draw_pier(
-            session, ride, stationObj, position, direction, height, tileElement, session->CurrentRotation);
+            session, ride, stationObj, session->MapPosition, direction, height, tileElement, session->CurrentRotation);
     }
 
     paint_util_set_segment_support_height(session, SEGMENTS_ALL, 0xFFFF, 0);
@@ -118,7 +117,6 @@ static void submarine_ride_paint_track_flat(
     paint_session* session, ride_id_t rideIndex, uint8_t trackSequence, uint8_t direction, int32_t height,
     const TileElement* tileElement)
 {
-    LocationXY16 position = session->MapPosition;
     int32_t heightLower = height - 16;
     uint32_t imageId;
 
@@ -135,7 +133,7 @@ static void submarine_ride_paint_track_flat(
         paint_util_push_tunnel_left(session, heightLower, TUNNEL_0);
     }
 
-    if (track_paint_util_should_paint_supports(position))
+    if (track_paint_util_should_paint_supports(session->MapPosition))
     {
         metal_a_supports_paint_setup(
             session, (direction & 1) ? METAL_SUPPORTS_STICK_ALT : METAL_SUPPORTS_STICK, 4, -1, heightLower,

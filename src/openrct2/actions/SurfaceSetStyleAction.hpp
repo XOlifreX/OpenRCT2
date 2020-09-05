@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -24,15 +24,15 @@ DEFINE_GAME_ACTION(SurfaceSetStyleAction, GAME_COMMAND_CHANGE_SURFACE_STYLE, Gam
 {
 private:
     MapRange _range;
-    uint8_t _surfaceStyle;
-    uint8_t _edgeStyle;
+    ObjectEntryIndex _surfaceStyle;
+    ObjectEntryIndex _edgeStyle;
 
 public:
     SurfaceSetStyleAction()
     {
     }
 
-    SurfaceSetStyleAction(MapRange range, uint8_t surfaceStyle, uint8_t edgeStyle)
+    SurfaceSetStyleAction(MapRange range, ObjectEntryIndex surfaceStyle, ObjectEntryIndex edgeStyle)
         : _range(range)
         , _surfaceStyle(surfaceStyle)
         , _edgeStyle(edgeStyle)
@@ -50,18 +50,18 @@ public:
     {
         auto res = MakeResult();
         res->ErrorTitle = STR_CANT_CHANGE_LAND_TYPE;
-        res->ExpenditureType = RCT_EXPENDITURE_TYPE_LANDSCAPING;
+        res->Expenditure = ExpenditureType::Landscaping;
 
         auto normRange = _range.Normalise();
         auto x0 = std::max(normRange.GetLeft(), 32);
         auto y0 = std::max(normRange.GetTop(), 32);
-        auto x1 = std::min(normRange.GetRight(), (int32_t)gMapSizeMaxXY);
-        auto y1 = std::min(normRange.GetBottom(), (int32_t)gMapSizeMaxXY);
+        auto x1 = std::min(normRange.GetRight(), static_cast<int32_t>(gMapSizeMaxXY));
+        auto y1 = std::min(normRange.GetBottom(), static_cast<int32_t>(gMapSizeMaxXY));
 
         MapRange validRange{ x0, y0, x1, y1 };
 
         auto& objManager = OpenRCT2::GetContext()->GetObjectManager();
-        if (_surfaceStyle != 0xFF)
+        if (_surfaceStyle != OBJECT_ENTRY_INDEX_NULL)
         {
             if (_surfaceStyle > 0x1F)
             {
@@ -79,7 +79,7 @@ public:
             }
         }
 
-        if (_edgeStyle != 0xFF)
+        if (_edgeStyle != OBJECT_ENTRY_INDEX_NULL)
         {
             if (_edgeStyle > 0xF)
             {
@@ -114,23 +114,27 @@ public:
 
         money32 surfaceCost = 0;
         money32 edgeCost = 0;
-        for (int32_t x = validRange.GetLeft(); x <= validRange.GetRight(); x += 32)
+        for (CoordsXY coords = { validRange.GetLeft(), validRange.GetTop() }; coords.x <= validRange.GetRight();
+             coords.x += COORDS_XY_STEP)
         {
-            for (int32_t y = validRange.GetTop(); y <= validRange.GetBottom(); y += 32)
+            for (coords.y = validRange.GetTop(); coords.y <= validRange.GetBottom(); coords.y += COORDS_XY_STEP)
             {
+                if (!LocationValid(coords))
+                    continue;
+
                 if (!(gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) && !gCheatsSandboxMode)
                 {
-                    if (!map_is_location_in_park({ x, y }))
+                    if (!map_is_location_in_park(coords))
                         continue;
                 }
 
-                auto surfaceElement = map_get_surface_element_at({ x, y });
+                auto surfaceElement = map_get_surface_element_at(coords);
                 if (surfaceElement == nullptr)
                 {
                     continue;
                 }
 
-                if (_surfaceStyle != 0xFF)
+                if (_surfaceStyle != OBJECT_ENTRY_INDEX_NULL)
                 {
                     uint8_t curSurfaceStyle = surfaceElement->GetSurfaceStyle();
 
@@ -145,7 +149,7 @@ public:
                     }
                 }
 
-                if (_edgeStyle != 0xFF)
+                if (_edgeStyle != OBJECT_ENTRY_INDEX_NULL)
                 {
                     uint8_t curEdgeStyle = surfaceElement->GetEdgeStyle();
 
@@ -165,13 +169,13 @@ public:
     {
         auto res = MakeResult();
         res->ErrorTitle = STR_CANT_CHANGE_LAND_TYPE;
-        res->ExpenditureType = RCT_EXPENDITURE_TYPE_LANDSCAPING;
+        res->Expenditure = ExpenditureType::Landscaping;
 
         auto normRange = _range.Normalise();
         auto x0 = std::max(normRange.GetLeft(), 32);
         auto y0 = std::max(normRange.GetTop(), 32);
-        auto x1 = std::min(normRange.GetRight(), (int32_t)gMapSizeMaxXY);
-        auto y1 = std::min(normRange.GetBottom(), (int32_t)gMapSizeMaxXY);
+        auto x1 = std::min(normRange.GetRight(), static_cast<int32_t>(gMapSizeMaxXY));
+        auto y1 = std::min(normRange.GetBottom(), static_cast<int32_t>(gMapSizeMaxXY));
 
         MapRange validRange{ x0, y0, x1, y1 };
 
@@ -185,23 +189,27 @@ public:
 
         money32 surfaceCost = 0;
         money32 edgeCost = 0;
-        for (int32_t x = validRange.GetLeft(); x <= validRange.GetRight(); x += 32)
+        for (CoordsXY coords = { validRange.GetLeft(), validRange.GetTop() }; coords.x <= validRange.GetRight();
+             coords.x += COORDS_XY_STEP)
         {
-            for (int32_t y = validRange.GetTop(); y <= validRange.GetBottom(); y += 32)
+            for (coords.y = validRange.GetTop(); coords.y <= validRange.GetBottom(); coords.y += COORDS_XY_STEP)
             {
+                if (!LocationValid(coords))
+                    continue;
+
                 if (!(gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) && !gCheatsSandboxMode)
                 {
-                    if (!map_is_location_in_park({ x, y }))
+                    if (!map_is_location_in_park(coords))
                         continue;
                 }
 
-                auto surfaceElement = map_get_surface_element_at({ x, y });
+                auto surfaceElement = map_get_surface_element_at(coords);
                 if (surfaceElement == nullptr)
                 {
                     continue;
                 }
 
-                if (_surfaceStyle != 0xFF)
+                if (_surfaceStyle != OBJECT_ENTRY_INDEX_NULL)
                 {
                     uint8_t curSurfaceStyle = surfaceElement->GetSurfaceStyle();
 
@@ -216,13 +224,13 @@ public:
 
                             surfaceElement->SetSurfaceStyle(_surfaceStyle);
 
-                            map_invalidate_tile_full(x, y);
-                            footpath_remove_litter(x, y, tile_element_height({ x, y }));
+                            map_invalidate_tile_full(coords);
+                            footpath_remove_litter({ coords, tile_element_height(coords) });
                         }
                     }
                 }
 
-                if (_edgeStyle != 0xFF)
+                if (_edgeStyle != OBJECT_ENTRY_INDEX_NULL)
                 {
                     uint8_t curEdgeStyle = surfaceElement->GetEdgeStyle();
 
@@ -231,14 +239,14 @@ public:
                         edgeCost += 100;
 
                         surfaceElement->SetEdgeStyle(_edgeStyle);
-                        map_invalidate_tile_full(x, y);
+                        map_invalidate_tile_full(coords);
                     }
                 }
 
                 if (surfaceElement->CanGrassGrow() && (surfaceElement->GetGrassLength() & 7) != GRASS_LENGTH_CLEAR_0)
                 {
                     surfaceElement->SetGrassLength(GRASS_LENGTH_CLEAR_0);
-                    map_invalidate_tile_full(x, y);
+                    map_invalidate_tile_full(coords);
                 }
             }
         }

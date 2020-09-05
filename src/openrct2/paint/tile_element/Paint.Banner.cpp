@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (c) 2014-2019 OpenRCT2 developers
+ * Copyright (c) 2014-2020 OpenRCT2 developers
  *
  * For a complete list of all authors, please refer to contributors.md
  * Interested in contributing? Visit https://github.com/OpenRCT2/OpenRCT2
@@ -21,7 +21,7 @@
 /** rct2: 0x0098D884 */
 // BannerBoundBoxes[rotation][0] is for the pole in the back
 // BannerBoundBoxes[rotation][1] is for the pole and the banner in the front
-const LocationXY16 BannerBoundBoxes[][2] = {
+constexpr CoordsXY BannerBoundBoxes[][2] = {
     { { 1, 2 }, { 1, 29 } },
     { { 2, 32 }, { 29, 32 } },
     { { 32, 2 }, { 32, 29 } },
@@ -34,7 +34,6 @@ const LocationXY16 BannerBoundBoxes[][2] = {
  */
 void banner_paint(paint_session* session, uint8_t direction, int32_t height, const TileElement* tile_element)
 {
-    uint16_t boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ;
     rct_drawpixelinfo* dpi = &session->DPI;
 
     session->InteractionType = VIEWPORT_INTERACTION_ITEM_BANNER;
@@ -65,9 +64,7 @@ void banner_paint(paint_session* session, uint8_t direction, int32_t height, con
     direction += bannerElement->GetPosition();
     direction &= 3;
 
-    boundBoxOffsetX = BannerBoundBoxes[direction][0].x;
-    boundBoxOffsetY = BannerBoundBoxes[direction][0].y;
-    boundBoxOffsetZ = height + 2;
+    CoordsXYZ boundBoxOffset = CoordsXYZ(BannerBoundBoxes[direction][0], height + 2);
 
     uint32_t base_id = (direction << 1) + banner_scenery->image;
     uint32_t image_id = base_id;
@@ -82,12 +79,12 @@ void banner_paint(paint_session* session, uint8_t direction, int32_t height, con
         image_id |= (banner->colour << 19) | IMAGE_TYPE_REMAP;
     }
 
-    sub_98197C(session, image_id, 0, 0, 1, 1, 0x15, height, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
-    boundBoxOffsetX = BannerBoundBoxes[direction][1].x;
-    boundBoxOffsetY = BannerBoundBoxes[direction][1].y;
+    sub_98197C(session, image_id, 0, 0, 1, 1, 0x15, height, boundBoxOffset.x, boundBoxOffset.y, boundBoxOffset.z);
+    boundBoxOffset.x = BannerBoundBoxes[direction][1].x;
+    boundBoxOffset.y = BannerBoundBoxes[direction][1].y;
 
     image_id++;
-    sub_98197C(session, image_id, 0, 0, 1, 1, 0x15, height, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
+    sub_98197C(session, image_id, 0, 0, 1, 1, 0x15, height, boundBoxOffset.x, boundBoxOffset.y, boundBoxOffset.z);
 
     // Opposite direction
     direction = direction_reverse(direction);
@@ -104,13 +101,8 @@ void banner_paint(paint_session* session, uint8_t direction, int32_t height, con
 
     scrollingMode += direction;
 
-    // We need to get the text colour code into the beginning of the string, so use a temporary buffer
-    char colouredBannerText[32]{};
-    utf8_write_codepoint(colouredBannerText, FORMAT_COLOUR_CODE_START + banner->text_colour);
-
-    set_format_arg(0, rct_string_id, STR_STRING_STRINGID);
-    set_format_arg(2, const char*, &colouredBannerText);
-    banner->FormatTextTo(gCommonFormatArgs + 2 + sizeof(const char*));
+    auto ft = Formatter::Common();
+    banner->FormatTextTo(ft, /*addColour*/ true);
 
     if (gConfigGeneral.upper_case_banners)
     {
@@ -126,6 +118,6 @@ void banner_paint(paint_session* session, uint8_t direction, int32_t height, con
 
     uint16_t string_width = gfx_get_string_width(gCommonStringFormatBuffer);
     uint16_t scroll = (gCurrentTicks / 2) % string_width;
-    auto scrollIndex = scrolling_text_setup(session, STR_BANNER_TEXT_FORMAT, scroll, scrollingMode, COLOUR_BLACK);
-    sub_98199C(session, scrollIndex, 0, 0, 1, 1, 0x15, height + 22, boundBoxOffsetX, boundBoxOffsetY, boundBoxOffsetZ);
+    auto scrollIndex = scrolling_text_setup(session, STR_BANNER_TEXT_FORMAT, ft, scroll, scrollingMode, COLOUR_BLACK);
+    sub_98199C(session, scrollIndex, 0, 0, 1, 1, 0x15, height + 22, boundBoxOffset.x, boundBoxOffset.y, boundBoxOffset.z);
 }
